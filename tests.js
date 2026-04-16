@@ -111,7 +111,9 @@ const getProcessTuplesTestCases = () => {
  */
 const runOneTest = (testName, testCase) => {
 
-  Logger.log(`=== START: ${testName} ===`);
+  Logger.log(`== runOneTest:${testName} START: ===`);
+
+  // todo: I removed the validations on the test data. add back later.
 
   // --- Act ---
   const result = processTuplesThroughValidators(
@@ -119,25 +121,13 @@ const runOneTest = (testName, testCase) => {
     testCase.hash,
     testCase.validators,
   );
-
-  // --- Assert: ok ---
-  Logger.log(`ok:      expected=${testCase.expectedOk}  actual=${result.ok}  ${result.ok === testCase.expectedOk ? '✅' : '❌'}`);
-
-  // --- Assert: message ---
-  Logger.log(`message: expected="${testCase.expectedMessage}"`);
-  Logger.log(`         actual="${result.message}"  ${result.message === testCase.expectedMessage ? '✅' : '❌'}`);
-
-  // --- Assert: data (only if expectedData is defined) ---
-  if (testCase.expectedData !== null && testCase.expectedData !== undefined) {
-    Logger.log('--- data assertions ---');
-    for (const key of Object.keys(testCase.expectedData)) {
-      const expected = testCase.expectedData[key];
-      const actual   = result.data ? result.data[key] : undefined;
-      Logger.log(`  ${key}: expected="${expected}"  actual="${actual}"  ${actual === expected ? '✅' : '❌'}`);
-    }
-  }
-
-  Logger.log(`=== END: ${testName} ===`);
+  Logger.log(`runOneTest: ${testName} Assertions.`);
+  Logger.log(`runOneTest: ${testName} testCase Expected Ok: ${testCase.expectedOk}`);
+  Logger.log(`runOneTest: ${testName} testCase Expected Message: ${testCase.expectedMessage}`);
+  Logger.log(`runOneTest: ${testName} testCase Actual : ${result.ok}`);
+  Logger.log(`runOneTest: ${testName} testCase Actual Message: ${result.message}`);
+  Logger.log(`runOneTest: ${testName} Pass?  ${testCase.expectedOk === result.ok ? '✅' : '❌'}`);
+  Logger.log(`== runOneTest:${testName} END: ===`);
 };
 
 

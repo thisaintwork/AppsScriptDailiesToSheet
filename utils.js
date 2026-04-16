@@ -53,7 +53,7 @@ const failResult = (message) => ({
  *   data = final state of hash after all tuples processed
  */
 const processTuplesThroughValidators = (tuples, hash, validators) => {
-
+   Logger.log(`Entered: processTuplesThroughValidators`);
   // --- Guard: validate inputs ---
   if (!tuples || !Array.isArray(tuples)) {
     return failResult('tuples must be an array');
@@ -67,9 +67,6 @@ const processTuplesThroughValidators = (tuples, hash, validators) => {
 
   // --- Start with a clean copy of the incoming hash ---
   let currentHash = { ...hash };
-
-  // What are we processing here?
-  Logger.log(`Execute processTuplesThroughValidators:`);
 
   // --- Outer loop: each tuple ---
   Logger.log(`>> Start Outer Loop`);
@@ -93,6 +90,7 @@ const processTuplesThroughValidators = (tuples, hash, validators) => {
 
        Logger.log(`>> >> Inner Loop, Running validator: ${validator.name} for tuple: ${JSON.stringify(tuple)}`);
        const result = validator(tuple, currentHash);
+       Logger.log(`>> >> Inner Loop, ${validator.name} result:${result.ok} - ${result.message}`);
 
       // Any validator failure stops everything
       if (!result.ok) {
@@ -202,7 +200,7 @@ const checkIsAttributeValueDefined = (tuple, hash) => {
   const attributeName = tuple[0];
   const value         = tuple[1];
 
-  Logger.log(`checkIsAttributeValueDefined attributeName=${attributeName} and value="${value}"`);
+  //Logger.log(`checkIsAttributeValueDefined attributeName=${attributeName} and value="${value}"`);
 
   if (value === undefined || value === null) {
     return failResult(`Value for attribute [${attributeName}] is undefined or null`);
