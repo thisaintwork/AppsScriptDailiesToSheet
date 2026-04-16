@@ -68,11 +68,14 @@ const processTuplesThroughValidators = (tuples, hash, validators) => {
   // --- Start with a clean copy of the incoming hash ---
   let currentHash = { ...hash };
 
+  // What are we processing here?
+  Logger.log(`Execute processTuplesThroughValidators:`);
+
   // --- Outer loop: each tuple ---
-  Logger.log(`processTuplesThroughValidators: Start Outer Loop`);
+  Logger.log(`>> Start Outer Loop`);
   for (const tuple of tuples) {
 
-    Logger.log(`OuterLoop: tuple[0]=${tuple[0]}, tuple[1]=${tuple[1]}`);
+    Logger.log(`>> OuterLoop: tuple[0]=${tuple[0]}, tuple[1]=${tuple[1]}`);
     // Guard: make sure this tuple is usable
     if (!Array.isArray(tuple) || tuple.length < 2) {
       return failResult(`Invalid tuple encountered: ${JSON.stringify(tuple)}`);
@@ -88,7 +91,7 @@ const processTuplesThroughValidators = (tuples, hash, validators) => {
     // --- Inner loop: each validator ---
     for (const validator of validators) {
 
-       Logger.log(`Running validator: ${validator.name} for tuple: ${JSON.stringify(tuple)}`);
+       Logger.log(`>> >> Inner Loop, Running validator: ${validator.name} for tuple: ${JSON.stringify(tuple)}`);
        const result = validator(tuple, currentHash);
 
       // Any validator failure stops everything
