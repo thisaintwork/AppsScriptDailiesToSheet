@@ -220,7 +220,76 @@ const replaceCharInTablesInPlace = ( body, findChar = '🟪', replaceWithChar = 
     message: changedIndices.length > 0
       ? `Changed ${changedIndices.length} table(s).`
       : `No checkmarks found in any table(s).`
-  };
-}
+  }
+};
 
+/* 1️⃣
+ ******************************************************************************************************************
+getDailySubTab(docId, topTabTitle, subTabTitle)
+ *
+ *
+ *
+ * Returns the contents of the subTab as a document object
+ *
+ * @param {string} docID
+ * @param {string} topTabTitle
+ * @param {string.Document.Body} subTabTitle
+ * @returns {Object} result
+ *   {GoogleAppsScript.Document.Body} sub
+ *   {boolean} ok - True if there were no errors
+ *   {string} message
+ */
+
+function getDailySubTab(docId = '15u2U-RSoiOVfaCPCwi0bf1Re_WsrO_QQG6aDw1oF3EM',topTabTitle = 'Dailies',subTabTitle = 'FY 2026 Q2 10' ) {
+
+  const sheetID = '1y2Frx8OJoKtVdTtfGdngpabnipCA96DylhODX82HZwQ';
+  const sheetTabTitle = 'Journal Input Queue';
+  const unCheckedCheckboxChar = '🟪';
+  const checkedCheckboxChar = '✔️';
+  /*
+   const docId = '15u2U-RSoiOVfaCPCwi0bf1Re_WsrO_QQG6aDw1oF3EM';
+   const topTabTitle = 'Dailies';
+   const subTabTitle = 'FY 2026 Q2 10';
+   */
+
+  // Access the Google Doc and the Google Sheet
+  const doc = DocumentApp.openById(docId);
+  const topTabs = doc.getTabs();
+
+  Logger.log(`Starting Google doc: ${doc.getName()}`);
+
+  const top = getTabByTitle(topTabs, topTabTitle);
+  if (top.ok) {
+    Logger.log(`Found tab: ${top.tab.getTitle()}`);
+  } else {
+    Logger.log('Top tab ${topTabTitle} not found!');
+    return;
+  }
+
+  const subTabs = top.tab.getChildTabs();
+  const sub = getTabByTitle(subTabs, subTabTitle);
+  if (sub.ok) {
+    Logger.log(`Found tab: ${sub.tab.getTitle()}`);
+  } else {
+    Logger.log('sub tab ${subTabTitle} not found!');
+    return;
+  }
+
+  const tables = sub.tab.asDocumentTab().getBody().getTables();
+};
+
+/*
+
+  // const firstTable = tablesSubset(tables, checkedCheckboxChar )[0];
+  //const rows =   extractTableRows(firstTable);
+  if ( appendTableRowsToSheet(extractTablesRows(tables,unCheckedCheckboxChar),sheetID,sheetTabTitle)) {
+    const replacedChar = replaceCharInTablesInPlace(sub.tab.asDocumentTab().getBody(),unCheckedCheckboxChar,checkedCheckboxChar)
+
+
+    Logger.log(`${replacedChar.message}`);
+  } else {
+    Logger.log(`No rows were appended and no tables were marked as complete}`);
+  }
+
+*/
 
