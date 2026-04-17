@@ -223,73 +223,101 @@ const replaceCharInTablesInPlace = ( body, findChar = '🟪', replaceWithChar = 
   }
 };
 
-/* 1️⃣
- ******************************************************************************************************************
-getDailySubTab(docId, topTabTitle, subTabTitle)
+/**
+ * Extracts tables from the tab that are marked with an unchecked check box,
+ * returns the tables as an array of Table objects.
  *
+ * @param {DocumentApp.Tab} docTab              - The Google Doc tab to extract tables from
+ * @param {string}          unCheckedCheckboxChar - The character used to mark tables for transfer
  *
- *
- * Returns the contents of the subTab as a document object
- *
- * @param {string} docID
- * @param {string} topTabTitle
- * @param {string.Document.Body} subTabTitle
- * @returns {Object} result
- *   {GoogleAppsScript.Document.Body} sub
- *   {boolean} ok - True if there were no errors
- *   {string} message
+ * @returns {{ ok: boolean, message: string, data: Array<DocumentApp.Table>|null }}
+ *   data = array of marked Table objects
  */
+const getMarkedTables = (docTab, unCheckedCheckboxChar) => {
+  Logger.log(`Entered: getMarkedTables unCheckedCheckboxChar=${unCheckedCheckboxChar}`);
 
-function getDailySubTab(docId = '15u2U-RSoiOVfaCPCwi0bf1Re_WsrO_QQG6aDw1oF3EM',topTabTitle = 'Dailies',subTabTitle = 'FY 2026 Q2 10' ) {
-
-  const sheetID = '1y2Frx8OJoKtVdTtfGdngpabnipCA96DylhODX82HZwQ';
-  const sheetTabTitle = 'Journal Input Queue';
-  const unCheckedCheckboxChar = '🟪';
-  const checkedCheckboxChar = '✔️';
-  /*
-   const docId = '15u2U-RSoiOVfaCPCwi0bf1Re_WsrO_QQG6aDw1oF3EM';
-   const topTabTitle = 'Dailies';
-   const subTabTitle = 'FY 2026 Q2 10';
-   */
-
-  // Access the Google Doc and the Google Sheet
-  const doc = DocumentApp.openById(docId);
-  const topTabs = doc.getTabs();
-
-  Logger.log(`Starting Google doc: ${doc.getName()}`);
-
-  const top = getTabByTitle(topTabs, topTabTitle);
-  if (top.ok) {
-    Logger.log(`Found tab: ${top.tab.getTitle()}`);
-  } else {
-    Logger.log('Top tab ${topTabTitle} not found!');
-    return;
+  // --- Guard: validate inputs ---
+  if (!docTab) {
+    return failResult('getMarkedTables: docTab is null or undefined');
+  }
+  if (!unCheckedCheckboxChar || unCheckedCheckboxChar.trim() === '') {
+    return failResult('getMarkedTables: unCheckedCheckboxChar is null or blank');
   }
 
-  const subTabs = top.tab.getChildTabs();
-  const sub = getTabByTitle(subTabs, subTabTitle);
-  if (sub.ok) {
-    Logger.log(`Found tab: ${sub.tab.getTitle()}`);
-  } else {
-    Logger.log('sub tab ${subTabTitle} not found!');
-    return;
+  // --- Get all tables from the tab body ---
+  let tables;
+  try {
+    tables = docTab.asDocumentTab().getBody().getTables();
+  } catch (err) {
+    return failResult(`getMarkedTables: Could not read tables from tab - ${err.message}`);
   }
 
-  const tables = sub.tab.asDocumentTab().getBody().getTables();
+  if (!tables || tables.length === 0) {
+    return failResult('getMarkedTables: No tables found in tab');
+  }
+  Logger.log(`getMarkedTables: found ${tables.length} total tables`);
+
+  // --- Filter to only the marked tables ---
+  let tablesToProcess;
+  try {
+    tablesToProcess = tablesSubset(tables, unCheckedCheckboxChar);
+  } catch (err) {
+    return failResult(`getMarkedTables: Could not filter tables - ${err.message}`);
+  }
+
+  if (!tablesToProcess || tablesToProcess.length === 0) {
+    return failResult(`getMarkedTables: No tables marked with: ${unCheckedCheckboxChar}`);
+  }
+  Logger.log(`getMarkedTables: found ${tablesToProcess.length} marked tables`);
+
+  return okResult(
+    `getMarkedTables: Successfully found ${tablesToProcess.length} marked table(s)`,
+    tablesToProcess
+  );
 };
 
-/*
+/**
+ * Opens a Google Doc by ID, navigates to a named top level tab,
+ * then finds and returns a named child tab within it.
+ *
+ * @param {string} docId        - The ID of the Google Doc
+ * @param {string} topTabTitle  - The title of the top level tab
+ * @param {string} subTabTitle  - The title of the child tab
+ *
+ * @returns {{ ok: boolean, message: string, data: DocumentTab|null }}
+ *   data = the child tab object if found
+ */
+const getDocSubTab = (docId, topTabTitle, subTabTitle) => {
+  Logger.log(`Entered: getDocSubTab docId=${docId} topTabTitle=${topTabTitle} subTabTitle=${subTabTitle}`);
 
-  // const firstTable = tablesSubset(tables, checkedCheckboxChar )[0];
-  //const rows =   extractTableRows(firstTable);
-  if ( appendTableRowsToSheet(extractTablesRows(tables,unCheckedCheckboxChar),sheetID,sheetTabTitle)) {
-    const replacedChar = replaceCharInTablesInPlace(sub.tab.asDocumentTab().getBody(),unCheckedCheckboxChar,checkedCheckboxChar)
-
-
-    Logger.log(`${replacedChar.message}`);
-  } else {
-    Logger.log(`No rows were appended and no tables were marked as complete}`);
+  // --- Open the Google Doc ---
+  let doc;
+  try {
+    doc = DocumentApp.openById(docId);
+  } catch (err) {
+    return failResult(`getDocSubTab: Could not open document with id: ${docId} - ${err.message}`);
   }
+  Logger.log(`getDocSubTab: opened doc: ${doc.getName()}`);
 
-*/
+  // --- Find the top level tab ---
+  const topTabs   = doc.getTabs();
+  const topResult = getTabByTitle(topTabs, topTabTitle);
+  if (!topResult.ok) {
+    return failResult(`getDocSubTab: Could not find top tab: ${topTabTitle} in doc: ${doc.getName()}`);
+  }
+  Logger.log(`getDocSubTab: found top tab: ${topResult.tab.getTitle()}`);
 
+  // --- Find the child tab ---
+  const subTabs   = topResult.tab.getChildTabs();
+  const subResult = getTabByTitle(subTabs, subTabTitle);
+  if (!subResult.ok) {
+    return failResult(`getDocSubTab: Could not find sub tab: ${subTabTitle} under top tab: ${topTabTitle}`);
+  }
+  Logger.log(`getDocSubTab: found sub tab: ${subResult.tab.getTitle()}`);
+
+  // --- Return the sub tab ---
+  return okResult(
+    `getDocSubTab: Successfully found sub tab: ${subTabTitle}`,
+    subResult.tab
+  );
+};

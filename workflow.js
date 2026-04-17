@@ -74,13 +74,35 @@ function transferDailiesWorkflow() {
   Logger.log(`transferDailiesWorkflow: config loaded successfully`);
 
   // --- Step 1: Get the correct Google Doc tab ---
-  // TODO: implement getDocSubTab()
+  // --- Step 1: Get the correct Google Doc tab ---
+  const subTabResult = getDocSubTab(
+  config.docId,
+  config.topTabTitle,
+  config.subTabTitle,
+  );
+
+  if (!subTabResult.ok) {
+  ui.alert('Document Error', subTabResult.message, ui.ButtonSet.OK);
+  return;
+  }
+  const subTab = subTabResult.data;
+  Logger.log(`transferDailiesWorkflow: subTab found: ${subTab.getTitle()}`);
 
   // --- Step 2: Extract tables marked for transfer ---
-  // TODO: implement extractMarkedTables()
+  const markedTablesResult = getMarkedTables(
+    subTab,
+    config.unCheckedCheckboxChar,
+  );
+  if (!markedTablesResult.ok) {
+    ui.alert('Document Error', markedTablesResult.message, ui.ButtonSet.OK);
+    return;
+  }
+
+  const markedTables = markedTablesResult.data;
+  Logger.log(`transferDailiesWorkflow: found ${markedTables.length} marked tables`);
 
   // --- Step 3: Write table data to the Google Sheet ---
-  // TODO: implement writeTableDataToSheet()
+  // TODO: implement writeMarkedTablesToSheet()
 
   // --- Step 4: Mark transferred tables as complete ---
   // TODO: implement markTablesAsComplete()

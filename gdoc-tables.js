@@ -61,13 +61,13 @@ const shouldCopyTable = table => {
  ******************************************************************************************************************
  *
  */
-const tablesSubset = (tables, checkedCheckboxChar = '✔') => 
+const tablesSubset = (tables, checkboxChar) =>
   tables.filter(table => {
     if (table.getType() !== DocumentApp.ElementType.TABLE) return false;
     if (table.getNumRows() === 0) return false;
     if (table.getRow(0).getNumCells() === 0) return false;
     const topLeft = table.getCell(0, 0).getText().trim();
-    return topLeft.includes(checkedCheckboxChar);
+    return topLeft.includes(checkboxChar);
   });
 
 
