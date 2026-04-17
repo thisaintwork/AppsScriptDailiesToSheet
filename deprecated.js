@@ -126,3 +126,96 @@ function createTimestampedSnapshot() {
 
   ui.alert("Success", `Values and dimensions from '${SOURCE_SHEET_NAME}' have been copied to a new sheet: '${newSheetName}'!`, ui.ButtonSet.OK);
 }
+
+/**
+ * Fails if the attribute already has a defined value in the hash.
+ *
+ * @param {Array<string>} tuple - [attributeName, value]
+ * @param {Object}        hash
+ * @returns {{ ok: boolean, message: string, data: Object|null }}
+ *   data = current hash unchanged
+ */
+const checkIsAttributeUnique_OLD = (tuple, hash) => {
+  const attributeName = tuple[0];
+  Logger.log(`checkIsAttributeUnique. testing  attributeName: ${attributeName} against hash contents: ${hash[attributeName]}`);
+
+  if (hash[attributeName] !== undefined) {
+    return failResult(`Duplicate attribute found: ${attributeName}`);
+  }
+  return okResult('no duplicate found', { ...hash });
+};
+
+/**
+ * Processes an array of tuples through a pipeline of validator functions.
+ * Each validator function receives the current attribute string and the
+ * current state of the hash, and returns a result object with an updated
+ * copy of the hash as data.
+ *
+ * Pre-conditions:
+ *   - tuples is an array of [attributeString, valueString] pairs
+ *   - hash has predefined keys with undefined values
+ *   - validators is an array of functions with signature:
+ *       (attributeString: string, hash: Object) => { ok, message, data: updatedHash }
+ *
+ * Skip conditions (handled before validator pipeline):
+ *   - attributeString is empty or blank
+ *   - attributeString is the word 'comment' (case insensitive)
+ *
+ * @param {Array<Array<string>>} tuples      - Array of [attributeString, valueString] pairs
+ * @param {Object}               hash        - Predefined keys with undefined values
+ * @param {Array<Function>}      validators  - Array of validator functions
+ *
+ * @returns {{ ok: boolean, message: string, data: Object|null }}
+ *   data = final state of hash after all tuples processed
+ */
+const processTuplesThroughValidators_OLD = (tuples, hash, validators) => {
+  Logger.log(`Entered: processTuplesThroughValidators`);
+  // --- Guard: validate inputs ---
+  if (!tuples || !Array.isArray(tuples)) {
+    return failResult('tuples must be an array');
+  }
+  if (!hash || typeof hash !== 'object') {
+    return failResult('hash must be an object');
+  }
+  if (!validators || !Array.isArray(validators)) {
+    return failResult('validators must be an array');
+  }
+
+  // --- Start with a clean copy of the incoming hash ---
+  let currentHash = {...hash};
+
+  // --- Outer loop: each tuple ---
+  Logger.log(`>> Start Outer Loop`);
+  for (const tuple of tuples) {
+
+    Logger.log(`>> OuterLoop: tuple[0]=${tuple[0]}, tuple[1]=${tuple[1]}`);
+    // Guard: make sure this tuple is usable
+    if (!Array.isArray(tuple) || tuple.length < 2) {
+      return failResult(`Invalid tuple encountered: ${JSON.stringify(tuple)}`);
+    }
+
+    // --- Skip check: runs before the validator pipeline ---
+    const skipCheck = okToSkip(tuple, currentHash);
+    Logger.log(`SkipOK? ${skipCheck.ok}`);
+    if (skipCheck.ok) {
+      continue;  // move to next tuple cleanly
+    }
+
+    // --- Inner loop: each validator ---
+    for (const validator of validators) {
+
+      Logger.log(`>> >> Inner Loop, Running validator: ${validator.name} for tuple: ${JSON.stringify(tuple)}`);
+      const result = validator(tuple, currentHash);
+      Logger.log(`>> >> Inner Loop, ${validator.name} result:${result.ok} - ${result.message}`);
+
+      // Any validator failure stops everything
+      if (!result.ok) {
+        return failResult(result.message);
+      }
+
+      // Carry the updated hash forward to the next validator
+      currentHash = {...result.data};
+    }
+  }
+};
+

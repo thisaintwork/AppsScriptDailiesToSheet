@@ -143,5 +143,63 @@ const appendTableRowsToSheet = ( extractedRows, sheetId, targetSheetName ) => {
   }
 }
 
+/**
+ * Reads up to maxRows rows from a named tab in a Google Sheet and returns
+ * the contents as an array of tuples.
+ * Each tuple is [columnA, columnB] representing one row.
+ *
+ * Pre-conditions:
+ *   - sheetId is a valid Google Sheet ID
+ *   - tabName is the name of an existing tab in that sheet
+ *   - maxRows is a positive integer
+ *
+ * @param {string} sheetId  - The ID of the Google Sheet
+ * @param {string} tabName  - The name of the tab to read from
+ * @param {number} maxRows  - Maximum number of rows to read
+ *
+ * @returns {{ ok: boolean, message: string, data: Array<Array<string>>|null }}
+ *   data = array of tuples [ [attributeName, value], ... ]
+ */
+const readTabAsTuples = (
+  sheetId,
+  tabName,
+  maxRows
+) => {
+  Logger.log(`Entered: readTabAsTuples sheetId=${sheetId} tabName=${tabName} maxRows=${maxRows}`);
 
+  // --- Find the spreadsheet ---
+  let spreadsheet;
+  try {
+    spreadsheet = SpreadsheetApp.openById(sheetId);
+  } catch (err) {
+    return failResult(`readTabAsTuples: Could not open spreadsheet with id: ${sheetId} - ${err.message}`);
+  }
+
+  // --- Find the tab ---
+  const sheet = spreadsheet.getSheetByName(tabName);
+  if (!sheet) {
+    return failResult(`readTabAsTuples: Could not find tab named: ${tabName} in spreadsheet: ${sheetId}`);
+  }
+
+  // --- Read the rows ---
+  let rawRows;
+  try {
+    rawRows = sheet.getRange(1, 1, maxRows, 2).getValues();
+  } catch (err) {
+    return failResult(`readTabAsTuples: Could not read rows from tab: ${tabName} - ${err.message}`);
+  }
+
+  // --- Convert to tuples ---
+  // getValues() returns an array of arrays already
+  // We just need to make sure values are strings
+  const tuples = rawRows.map(row => [
+    row[0].toString(),
+    row[1].toString(),
+  ]);
+
+
+
+  Logger.log(`readTabAsTuples: read ${tuples.length} tuples from ${tabName}`);
+  return okResult(`Successfully read ${tuples.length} rows from ${tabName}`, tuples);
+};
 

@@ -29,31 +29,28 @@ const failResult = (message) => ({
   data:    null
 });
 
-/**
+
+  /**
  * Processes an array of tuples through a pipeline of validator functions.
- * Each validator function receives the current attribute string and the
- * current state of the hash, and returns a result object with an updated
- * copy of the hash as data.
+ * Each validator runs once and receives the full array of tuples and the
+ * current state of the hash.
  *
  * Pre-conditions:
  *   - tuples is an array of [attributeString, valueString] pairs
  *   - hash has predefined keys with undefined values
  *   - validators is an array of functions with signature:
- *       (attributeString: string, hash: Object) => { ok, message, data: updatedHash }
- *
- * Skip conditions (handled before validator pipeline):
- *   - attributeString is empty or blank
- *   - attributeString is the word 'comment' (case insensitive)
+ *       (tuples: Array<Array<string>>, hash: Object) => { ok, message, data: updatedHash }
  *
  * @param {Array<Array<string>>} tuples      - Array of [attributeString, valueString] pairs
  * @param {Object}               hash        - Predefined keys with undefined values
  * @param {Array<Function>}      validators  - Array of validator functions
  *
  * @returns {{ ok: boolean, message: string, data: Object|null }}
- *   data = final state of hash after all tuples processed
+ *   data = final state of hash after all validators processed
  */
 const processTuplesThroughValidators = (tuples, hash, validators) => {
-   Logger.log(`Entered: processTuplesThroughValidators`);
+  Logger.log(`Entered: processTuplesThroughValidators`);
+
   // --- Guard: validate inputs ---
   if (!tuples || !Array.isArray(tuples)) {
     return failResult('tuples must be an array');
@@ -68,43 +65,28 @@ const processTuplesThroughValidators = (tuples, hash, validators) => {
   // --- Start with a clean copy of the incoming hash ---
   let currentHash = { ...hash };
 
-  // --- Outer loop: each tuple ---
-  Logger.log(`>> Start Outer Loop`);
-  for (const tuple of tuples) {
+  // --- Loop: each validator runs once against the full tuples array ---
+  Logger.log(`>> Start Validator Loop`);
+  for (const validator of validators) {
 
-    Logger.log(`>> OuterLoop: tuple[0]=${tuple[0]}, tuple[1]=${tuple[1]}`);
-    // Guard: make sure this tuple is usable
-    if (!Array.isArray(tuple) || tuple.length < 2) {
-      return failResult(`Invalid tuple encountered: ${JSON.stringify(tuple)}`);
+    Logger.log(`>> Running validator: ${validator.name}`);
+    const result = validator(tuples, currentHash);
+    Logger.log(`>> ${validator.name} result: ${result.ok} - ${result.message}`);
+
+    // Any validator failure stops everything
+    if (!result.ok) {
+      return failResult(result.message);
     }
 
-    // --- Skip check: runs before the validator pipeline ---
-    const skipCheck = okToSkip(tuple, currentHash);
-    Logger.log(`SkipOK? ${skipCheck.ok}`);
-    if (skipCheck.ok) {
-      continue;  // move to next tuple cleanly
-    }
-
-    // --- Inner loop: each validator ---
-    for (const validator of validators) {
-
-       Logger.log(`>> >> Inner Loop, Running validator: ${validator.name} for tuple: ${JSON.stringify(tuple)}`);
-       const result = validator(tuple, currentHash);
-       Logger.log(`>> >> Inner Loop, ${validator.name} result:${result.ok} - ${result.message}`);
-
-      // Any validator failure stops everything
-      if (!result.ok) {
-        return failResult(result.message);
-      }
-
-      // Carry the updated hash forward to the next validator
-      currentHash = { ...result.data };
-    }
+    // Carry the updated hash forward to the next validator
+    currentHash = { ...result.data };
   }
 
-  // --- All tuples passed all validators ---
-  return okResult('All tuples processed successfully', currentHash);
+  // --- All validators passed ---
+  return okResult('All validators processed successfully', currentHash);
 };
+
+
 
 /**
  * Determines whether a tuple should be skipped entirely.
@@ -134,85 +116,156 @@ const okToSkip = (tuple, hash) => {
   return failResult('not a skip condition - continue processing');
 };
 
+
 /**
- * Fails if the attribute already has a defined value in the hash.
+ * Fails if any attribute name appears more than once in the tuples array.
+ * Ignores comment and empty rows.
+ * This must run after checkIsAttributeKnownKey
  *
- * @param {Array<string>} tuple - [attributeName, value]
- * @param {Object}        hash
+ * @param {Array<Array<string>>} tuples
+ * @param {Object}               hash
  * @returns {{ ok: boolean, message: string, data: Object|null }}
- *   data = current hash unchanged
  */
-const checkIsAttributeDuplicate = (tuple, hash) => {
-  const attributeName = tuple[0];
-  if (hash[attributeName] !== undefined) {
-    return failResult(`Duplicate attribute found: ${attributeName}`);
+const checkIsAttributeUnique = (tuples, hash) => {
+  const seen       = {};
+  const duplicates = [];
+
+  for (const tuple of tuples) {
+    const attributeName = tuple[0].trim().toLowerCase();
+
+    // Skip empty and comment rows
+    if (okToSkip(tuple, hash).ok) continue;
+
+    if (seen[attributeName]) {
+      if (!duplicates.includes(attributeName)) {
+        duplicates.push(attributeName);
+      }
+    } else {
+      seen[attributeName] = true;
+    }
   }
-  return okResult('no duplicate found', { ...hash });
+
+  if (duplicates.length > 0) {
+    return failResult(`Duplicate attribute(s) found: ${duplicates.join(', ')}`);
+  }
+
+  return okResult('No duplicates found', { ...hash });
 };
 
 
 /**
- * Fails if the attribute is not a predefined key in the hash.
+ * Fails if any attribute name in the tuples array is not a predefined key in the hash.
  * Unknown keys are not valid input.
+ * Ignores comment and empty rows.
+ * This must be the first validator that is run
  *
- * @param {Array<string>} tuple - [attributeName, value]
- * @param {Object}        hash
+ * @param {Array<Array<string>>} tuples - Array of [attributeName, value] pairs
+ * @param {Object}               hash
  * @returns {{ ok: boolean, message: string, data: Object|null }}
  *   data = current hash unchanged
  */
-const checkIsAttributeKnownKey = (tuple, hash) => {
-  const attributeName = tuple[0];
-  if (!Object.prototype.hasOwnProperty.call(hash, attributeName)) {
-    return failResult(`Unknown attribute: ${attributeName}`);
+const checkIsAttributeKnownKey = (tuples, hash) => {
+  const unknownKeys = [];
+  const hashByHashKey = getConfigHash()
+
+  for (const key of Object.keys(hashByHashKey)) {
+    hashByHashKey[key] = key;
+    //Logger.log(`checkIsAttributeKnownKey. key = ${key}, hashByHashKey[key] = ${hashByHashKey[key]}`);
   }
-  return okResult('known key', { ...hash });
+  for (const key of Object.keys(hashByHashKey)) {
+      Logger.log(`checkIsAttributeKnownKey. key = ${key}, hashByHashKey[key] = ${hashByHashKey[key]}`);
+  }
+
+  for (const tuple of tuples) {
+
+    // Skip empty and comment rows
+    if (okToSkip(tuple, hash).ok) continue;
+
+    const attributeName = tuple[0];
+    Logger.log(`checkIsAttributeKnownKey. attributeName = ${attributeName}, hashByHashKey[attributeName] = ${hashByHashKey[attributeName]}, ${attributeName === hashByHashKey[attributeName] ? '✅' : '❌'}`);
+    if (hashByHashKey[attributeName] !== attributeName) {
+      unknownKeys.push(attributeName);
+    }
+  }
+
+  if (unknownKeys.length > 0) {
+    return failResult(`Unknown attribute(s) found: ${unknownKeys.join(', ')}`);
+  }
+
+  return okResult('All attribute names are known keys', { ...hash });
 };
 
 
+
+
 /**
- * Assigns the value from the tuple to the correct key in the hash.
+ * Fails if any tuple value in the tuples array is missing, not a string, or blank.
+ * Ignores comment and empty rows.
+ * Must run after validator: checkIsAttributeKnownKey
+ *
+ * @param {Array<Array<string>>} tuples - Array of [attributeName, value] pairs
+ * @param {Object}               hash
+ * @returns {{ ok: boolean, message: string, data: Object|null }}
+ *   data = current hash unchanged
+ */
+const checkIsAttributeValueDefined = (tuples, hash) => {
+  const invalidValues = [];
+
+  for (const tuple of tuples) {
+
+    // Skip empty and comment rows
+    if (okToSkip(tuple, hash).ok) continue;
+
+    const attributeName = tuple[0];
+    const value         = tuple[1];
+
+    if (value === undefined || value === null) {
+      invalidValues.push(`[${attributeName}] is undefined or null`);
+      continue;
+    }
+
+    if (typeof value !== 'string') {
+      invalidValues.push(`[${attributeName}] is not a string: ${value}`);
+      continue;
+    }
+
+    if (value.trim() === '') {
+      invalidValues.push(`[${attributeName}] is blank`);
+      continue;
+    }
+  }
+
+  if (invalidValues.length > 0) {
+    return failResult(`Invalid value(s) found: ${invalidValues.join(', ')}`);
+  }
+
+  return okResult('All attribute values are valid', { ...hash });
+};
+
+/**
+ * Assigns values from the tuples array to the correct keys in the hash.
  * This should always be the last validator in the pipeline.
+ * Ignores comment and empty rows.
  *
- * @param {Array<string>} tuple - [attributeName, value]
- * @param {Object}        hash
+ * @param {Array<Array<string>>} tuples - Array of [attributeName, value] pairs
+ * @param {Object}               hash
  * @returns {{ ok: boolean, message: string, data: Object|null }}
- *   data = updated copy of hash with value assigned
+ *   data = updated copy of hash with all values assigned
  */
-const assignValueToHash = (tuple, hash) => {
-  const attributeName = tuple[0];
-  const value         = tuple[1];
-  const updatedHash   = { ...hash };
+const assignValuesToHash = (tuples, hash) => {
+  const updatedHash = { ...hash };
 
-  updatedHash[attributeName] = value;
-  Logger.log(`assignValueToHash updatedHash[${attributeName}]=${value}`);
-  return okResult(`Assigned [${attributeName}]=[${value}]`, updatedHash);
-};
+  for (const tuple of tuples) {
 
-/**
- * Fails if the tuple value is missing, not a string, or blank.
- *
- * @param {Array<string>} tuple - [attributeName, value]
- * @param {Object}        hash
- * @returns {{ ok: boolean, message: string, data: Object|null }}
- *   data = current hash unchanged
- */
-const checkIsAttributeValueDefined = (tuple, hash) => {
-  const attributeName = tuple[0];
-  const value         = tuple[1];
+    // Skip empty and comment rows
+    if (okToSkip(tuple, hash).ok) continue;
 
-  //Logger.log(`checkIsAttributeValueDefined attributeName=${attributeName} and value="${value}"`);
+    const attributeName = tuple[0];
+    const value         = tuple[1];
 
-  if (value === undefined || value === null) {
-    return failResult(`Value for attribute [${attributeName}] is undefined or null`);
+    updatedHash[attributeName] = value;
+    Logger.log(`assignValuesToHash updatedHash[${attributeName}]=${value}`);
   }
 
-  if (typeof value !== 'string') {
-    return failResult(`Value for attribute [${attributeName}] is not a string: ${value}`);
-  }
-
-  if (value.trim() === '') {
-    return failResult(`Value for attribute [${attributeName}] is blank`);
-  }
-
-  return okResult(`Value for [${attributeName}] is valid`, { ...hash });
+  return okResult('All values assigned to hash', updatedHash);
 };

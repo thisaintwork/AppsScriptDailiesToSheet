@@ -15,7 +15,7 @@ function onOpen() {
   ui.createMenu('Custom Tools')
       .addItem('Delete Snapshot Tabs', 'deleteSnapshotTabs')
       .addItem('create Timestamped Snapshot', 'createTimestampedSnapshot')
-      .addItem('1️⃣Import Completed Dailies', 'transferDailiesWorkflow')
+      .addItem('Import Completed Dailies', 'transferDailiesWorkflow')
       .addToUi();
 }
 

@@ -23,7 +23,6 @@ const getProcessTuplesTestCases = () => {
 
     happyPath: {
       hash: {
-        sheetID:               undefined,
         sheetTabTitle:         undefined,
         unCheckedCheckboxChar: undefined,
         checkedCheckboxChar:   undefined,
@@ -32,7 +31,6 @@ const getProcessTuplesTestCases = () => {
         subTabTitle:           undefined,
       },
       tuples: [
-        ['sheetID',               '1y2Frx8OJoKtVdTtfGdngpabnipCA96DylhODX82HZwQ'],
         ['sheetTabTitle',         'Journal Input Queue'],
         ['unCheckedCheckboxChar', '🟪'],
         ['checkedCheckboxChar',   '✔️'],
@@ -43,15 +41,14 @@ const getProcessTuplesTestCases = () => {
         ['',                      'this empty row should be skipped'],
       ],
       validators: [
-        checkIsAttributeDuplicate,
         checkIsAttributeKnownKey,
+        checkIsAttributeUnique,
         checkIsAttributeValueDefined,
-        assignValueToHash,
+        assignValuesToHash,
       ],
       expectedOk:      true,
       expectedMessage: 'All tuples processed successfully',
       expectedData: {
-        sheetID:               '1y2Frx8OJoKtVdTtfGdngpabnipCA96DylhODX82HZwQ',
         sheetTabTitle:         'Journal Input Queue',
         unCheckedCheckboxChar: '🟪',
         checkedCheckboxChar:   '✔️',
@@ -63,33 +60,30 @@ const getProcessTuplesTestCases = () => {
 
     duplicate: {
       hash: {
-        sheetID:     undefined,
         topTabTitle: undefined,
       },
       tuples: [
-        ['sheetID',     '1y2Frx8OJoK...'],
-        ['sheetID',     'duplicate value'],
+        ['topTabTitle', 'duplicate value'],
         ['topTabTitle', 'Dailies'],
       ],
       validators: [
-        checkIsAttributeDuplicate,
-        checkIsAttributeKnownKey,
+        checkIsAttributeUnique,
+,
       ],
       expectedOk:      false,
-      expectedMessage: 'Duplicate attribute found: sheetID',
+      expectedMessage: 'Duplicate attribute found: topTabTitle',
       expectedData:    null,
     },
 
     unknownKey: {
       hash: {
-        sheetID: undefined,
+        topTabTitle: undefined,
       },
       tuples: [
         ['unknownAttribute', 'someValue'],
       ],
       validators: [
-        checkIsAttributeDuplicate,
-        checkIsAttributeKnownKey,
+         checkIsAttributeKnownKey,
       ],
       expectedOk:      false,
       expectedMessage: 'Unknown attribute: unknownAttribute',
@@ -124,6 +118,7 @@ const runOneTest = (testName, testCase) => {
   Logger.log(`runOneTest: ${testName} Assertions.`);
   Logger.log(`runOneTest: ${testName} testCase Expected Ok: ${testCase.expectedOk}`);
   Logger.log(`runOneTest: ${testName} testCase Expected Message: ${testCase.expectedMessage}`);
+  Logger.log(`runOneTest: ${testName} Actual.`);
   Logger.log(`runOneTest: ${testName} testCase Actual : ${result.ok}`);
   Logger.log(`runOneTest: ${testName} testCase Actual Message: ${result.message}`);
   Logger.log(`runOneTest: ${testName} Pass?  ${testCase.expectedOk === result.ok ? '✅' : '❌'}`);
