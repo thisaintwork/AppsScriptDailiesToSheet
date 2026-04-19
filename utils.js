@@ -1,3 +1,4 @@
+// utils.js
 /* 1️⃣
  *************************************************************************************************************************** 
  * Generates a timestamp string for the current date and time in 
@@ -166,7 +167,7 @@ const checkIsAttributeUnique = (tuples, hash) => {
  */
 const checkIsAttributeKnownKey = (tuples, hash) => {
   const unknownKeys = [];
-  const hashByHashKey = getConfigHash()
+  const hashByHashKey = getConfigHash();
 
   for (const key of Object.keys(hashByHashKey)) {
     hashByHashKey[key] = key;

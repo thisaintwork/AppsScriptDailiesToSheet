@@ -1,5 +1,4 @@
-/*
- * tests.gs
+/* tests.gs
  * =====================================================================
  * Test pattern:
  *   1. Arrange  — set up inputs

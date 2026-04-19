@@ -1,4 +1,4 @@
-/*
+/* menu.js
 Only:
 
 custom menu creation

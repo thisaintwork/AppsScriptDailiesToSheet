@@ -1,4 +1,4 @@
-
+// gsheet-sheet.js
 
 // ***********************************************************************************************************************************************************************************************
 function extractURLs(cell) {
@@ -86,8 +86,6 @@ function UnhideAllColumns() {
     }
 }
 
-
-
 /**
  * Appends the extracted row data to a specific tab within a Google Sheet.
  * * @param {Array<Array<string>>} extractedRows - The array of rows to write.
@@ -98,8 +96,12 @@ function UnhideAllColumns() {
 const appendTableRowsToSheet = ( extractedRows, sheetId, targetSheetName ) => {
   if (extractedRows.length === 0 || extractedRows[0].length === 0) {
     Logger.log('No valid data rows to append.');
-    return false;
+      return failResult(
+        `No valid data rows to append.`
+      );
   }
+
+
   Logger.log(`appendTableRowsToSheet: extractedRows.length: ${extractedRows.length}`);
 
   try {
@@ -110,7 +112,9 @@ const appendTableRowsToSheet = ( extractedRows, sheetId, targetSheetName ) => {
 
     if (!sheet) {
         Logger.log(`appendTableRowsToSheet: ERROR: Could not find sheet tab named: ${targetSheetName}`);
-        return false;
+        return failResult(
+          `appendTableRowsToSheet: ERROR: Could not find sheet tab named: ${targetSheetName}`
+        );
     }
 
     // Determine the starting row for the new data
@@ -135,11 +139,15 @@ const appendTableRowsToSheet = ( extractedRows, sheetId, targetSheetName ) => {
     range.setValues(modifiedRows);
 
     Logger.log(`appendTableRowsToSheet: Successfully appended ${numRows} rows to tab: ${targetSheetName}`);
-    return true;
+    return okResult(
+          `appendTableRowsToSheet: Successfully appended ${numRows} rows to tab: ${targetSheetName}`
+        );
 
   } catch (error) {
     Logger.log(`appendTableRowsToSheet: ERROR: Failed to open sheet or append data: ${error}`);
-    return false;
+    return failResult(
+        `appendTableRowsToSheet: ERROR: Failed to open sheet or append data: ${error}`
+      );
   }
 }
 

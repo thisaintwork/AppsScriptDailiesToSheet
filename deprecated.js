@@ -1,4 +1,4 @@
-// Test comment
+// deprecated.js
 // ***********************************************************************************************************************************************************************************************
 function createTimestampedSnapshot() {
   // --- Configuration Variables ---
@@ -219,3 +219,589 @@ const processTuplesThroughValidators_OLD = (tuples, hash, validators) => {
   }
 };
 
+/* 1️⃣
+ ***************************************************************************************************************************
+ * Return document ID
+ */
+const createNewGoogleDoc = (docName = "tmpDoc202510081748356")  => {
+  Logger.log(`createNewGoogleDoc: ${docName}`);
+  try {
+    const doc = DocumentApp.create(docName);
+    const body = doc.getBody();
+    // Remove first child if present.
+    if (body.getNumChildren() > 1) {
+      body.removeChild(body.getChild(0));
+    }
+
+    //body.appendPageBreak();
+    doc.saveAndClose();
+
+    return {
+      ok: true,
+      id: doc.getId(),
+      name: doc.getName(),
+      message: `✅ Created document: ${doc.getName()} (ID: ${doc.getId()})`
+    };
+
+  } catch (err) {
+    return {
+      ok: false,
+      error: err,
+      id: null,
+      name: docName,
+      message: `❌ Failed to create Google Doc: ${docName} - ${err}`
+    };
+  }
+};
+
+
+
+/* 1️⃣
+ * Converts a Google Doc to a DOCX file in Google Drive.
+ * Functional idiom: Returns a result object with status and outcome.
+ *
+ * @param {string} docId - The ID of the Google Docs file to convert.
+ * @returns {Object} An explicit result object:
+ *   {
+ *     ok: boolean,
+ *     docxFile: DriveApp.File|null,
+ *     docxId: string|null,
+ *     docxUrl: string|null,
+ *     docxName: string|null,
+ *     message: string,
+ *     error: any|null
+ *   }
+ */
+const convertGoogleDocToDocx = (docId = '1fVUBmOKkUET3pEQgoZGhqXb26CLncSE7FQnjZtC4ak8') => {
+  try {
+    // Get the original file and its information
+    //const docFile = DriveApp.getFileById(docId);
+    const docFile = DriveApp.getFilesByName(docId);
+
+    // Use Drive API to export as DOCX (Microsoft Word) format
+    const apiUrl = `https://www.googleapis.com/drive/v3/files/${docId}/export?mimeType=application/vnd.openxmlformats-officedocument.wordprocessingml.document`;
+
+    const response = UrlFetchApp.fetch(apiUrl, {
+      method: 'get',
+      headers: {
+        Authorization: 'Bearer ' + ScriptApp.getOAuthToken()
+      },
+      muteHttpExceptions: true
+    });
+
+    // Check for problems (like not a Google Doc, or bad permissions)
+    if (response.getResponseCode() !== 200) {
+      const message = `${convertGoogleDocToDocx.name}: Export failed: HTTP ${response.getResponseCode()} - ${response.getContentText()}`;
+      Logger.log(message);
+      return {
+        ok: false,
+        docxFile: null,
+        docxId: null,
+        docxUrl: null,
+        docxName: null,
+        message: message,
+        error: response
+      };
+    }
+
+    // Name and create .docx file in the same folder (or root, if no parent)
+    const docxBlob = response.getBlob();
+    const docxName = docFile.getName() + '.docx';
+    const parentFolders = docFile.getParents();
+    const parentFolder = parentFolders.hasNext() ? parentFolders.next() : DriveApp.getRootFolder();
+    const docxFile = parentFolder.createFile(docxBlob).setName(docxName);
+    const message = `${convertGoogleDocToDocx.name}: DOCX file created successfully in Drive: ${docxFile.getName()}`;
+    Logger.log(message);
+    return {
+      ok: true,
+      docxFile,
+      docxId: docxFile.getId(),
+      docxUrl: docxFile.getUrl(),
+      docxName,
+      message: message,
+      error: null
+    };
+  } catch (err) {
+    const message = `${convertGoogleDocToDocx.name}: Error during conversion: ${err}`;
+    Logger.log(message);
+    return {
+      ok: false,
+      docxFile: null,
+      docxId: null,
+      docxUrl: null,
+      docxName: null,
+      message: message,
+      error: err
+    };
+  }
+};
+
+
+
+/* 1️⃣
+ * Creates a copy of a Google Doc by ID.
+ *
+ * @param {string} docId - The ID of the source Google Doc.
+ * @returns {Object} An explicit result object:
+ *   {
+ *     ok: boolean,
+ *     newDocFile: DriveApp.File|null,
+ *     newDocId: string|null,
+ *     newDocUrl: string|null,
+ *     newDocName: string|null,
+ *     message: string,
+ *     error: any|null
+ *   }
+ */
+const copyGoogleDocById = (docId = '1fVUBmOKkUET3pEQgoZGhqXb26CLncSE7FQnjZtC4ak8') => {
+  try {
+    const srcFile = DriveApp.getFileById(docId);
+    const newFileName = srcFile.getName() + ' (Copy)';
+    const parentFolders = srcFile.getParents();
+    const parentFolder = parentFolders.hasNext() ? parentFolders.next() : DriveApp.getRootFolder();
+
+    // Create the copy
+    const newDocFile = srcFile.makeCopy(newFileName, parentFolder);
+    Logger.log(`Copy created: ${newDocFile.getName()}`);
+
+    return {
+      ok: true,
+      newDocFile,
+      newDocId: newDocFile.getId(),
+      newDocUrl: newDocFile.getUrl(),
+      newDocName: newDocFile.getName(),
+      message: `Copy created: ${newDocFile.getName()}`,
+      error: null
+    };
+  } catch (err) {
+    Logger.log(`Error creating document copy: ${err}`);
+    return {
+      ok: false,
+      newDocFile: null,
+      newDocId: null,
+      newDocUrl: null,
+      newDocName: null,
+      message: `Error creating document copy: ${err}`,
+      error: err
+    };
+  }
+};
+
+
+
+/* 1️⃣ Experiment
+ * Replaces in the top-left cell of every table in a document body (in-place).
+ * Returns an object describing what was changed.
+ *
+ * @param {GoogleAppsScript.Document.Body} body
+ * @returns {Object} result
+ *   {number[]} changedIndices - Array of table indices that were changed.
+ *   {number} changedCount - How many tables were updated.
+ *   {number} tableCount - Total tables processed.
+ *   {boolean} ok - True if any changes were made.
+ */
+const replaceCharInTablesInPlace = ( body, findChar = '🟪', replaceWithChar = '✔️') => {
+  const tables = body.getTables();
+  const changedIndices = [];
+  for (let i = 0; i < tables.length; i++) {
+    const table = tables[i];
+    if (table.getNumRows() > 0 && table.getRow(0).getNumCells() > 0) {
+      const cell = table.getCell(0, 0);
+      const text = cell.getText();
+      if (text.includes(findChar)) {
+        // Simplistic replace. Will replace all instances
+        const regex = new RegExp(findChar, 'g');
+        cell.setText(text.replace(regex, replaceWithChar));
+        changedIndices.push(i);
+      }
+    }
+  }
+  return {
+    ok: changedIndices.length > 0,
+    changedIndices,
+    changedCount: changedIndices.length,
+    tableCount: tables.length,
+    message: changedIndices.length > 0
+      ? `Changed ${changedIndices.length} table(s).`
+      : `No checkmarks found in any table(s).`
+  }
+};
+
+
+
+
+
+  // Logger.log(`extractTableRows; rowsData: ${rowsData.length}`);
+  //Logger.log(`extractTableRows; Extracted Rows: ${JSON.stringify(rowsData, null, 2)}`);
+  // Logger.log('extractTableRows;  ===================================================================');
+  // Logger.log(`extractTableRows; rowsData[0,0]: ${rowsData[0,0]}`);
+  // Logger.log(`extractTableRows; rowsData[0,1]: ${rowsData[0,1]}`);
+  // Logger.log(`extractTableRows; rowsData[0,1]: ${rowsData[0,2]}`);
+  // Logger.log('extractTableRows;  ===================================================================');
+
+
+
+
+
+/* 1️⃣
+ ******************************************************************************************************************
+ *
+ */
+const shouldCopyTable = table => {
+  const checkedCheckboxChar = '✔';
+  let ok = table.getType() === DocumentApp.ElementType.TABLE;
+  if (ok) {
+    const hasFirstRowCell = ok && table.getRow(0).getNumCells() > 0;
+    const hasRows = table.getNumRows() > 0;
+    const topLeft = hasRows ? table.getCell(0, 0).getText().trim() : '';
+    ok = hasRows && hasFirstRowCell && topLeft.includes(checkedCheckboxChar);
+  }
+
+  return {
+    ok,
+    reason: ok ? 'Checked checkbox found' : 'No checked checkbox or no rows',
+    table
+  };
+};
+
+
+/* 1️⃣
+ ******************************************************************************************************************
+ *
+ */
+const copyCheckedTables = (tables, body) => {
+  const checkResults = tables.map(shouldCopyTable);
+  const copied = [];
+  const skipped = [];
+
+  checkResults.forEach(result => {
+    if (result.ok) {
+      try {
+        // Already validated by shouldCopyTable, but could check again for robustness
+        const copy = result.table.copy();
+        body.appendTable(copy);
+        body.appendParagraph('');
+        Logger.log(`Appended table: ${copy.getText()}`);
+        copied.push(copy);
+      } catch (error) {
+        Logger.log(`Failed to append a checked table: ${error}`);
+        skipped.push(result.table); // Optional: could mark as error-skipped
+      }
+    } else {
+      skipped.push(result.table);
+    }
+  });
+
+  return {
+    ok: copied.length > 0,
+    copied,
+    skipped,
+    message: `${copied.length} table(s) copied, ${skipped.length} table(s) skipped.`
+  };
+};
+
+/* 1️⃣
+ * Appends tables to the first tab (default) of the specified Google Doc.
+ * Returns an explicit result object.
+ *
+ * @param {Table[]} tablesToCopy - Tables to append.
+ * @param {string} googleDocID - ID of the target Doc.
+ * @returns {Object} Functional idiom result object.
+ */
+const saveBodyTablesToFirstTabInNewDoc = (tablesToCopy, googleDocID) => {
+  try {
+    const doc = DocumentApp.openById(googleDocID);
+
+    // Find the tabs in this doc
+    const tabs = doc.getTabs();
+    if (!tabs || tabs.length === 0) {
+      return {
+        ok: false,
+        copied: [],
+        skipped: tablesToCopy,
+        googleDocID,
+        docUrl: `https://docs.google.com/document/d/${googleDocID}`,
+        message: `${saveBodyTablesToFirstTabInNewDoc.name}: No tabs found in doc id: ${googleDocID}.`,
+      };
+    }
+
+    // Use the first tab (default created tab)
+    const firstTab = tabs[0];
+    const tabBody = firstTab.asDocumentTab().getBody();
+
+    // Actually copy and append tables
+    const copyResult = copyCheckedTables(tablesToCopy, tabBody);
+    doc.saveAndClose();
+
+    return {
+      ...copyResult,
+      googleDocID,
+      docUrl: `https://docs.google.com/document/d/${googleDocID}`,
+      message: copyResult.ok
+        ? `${saveBodyTablesToFirstTabInNewDoc.name}: Successfully copied tables to the first tab of doc id: ${googleDocID}`
+        : `${saveBodyTablesToFirstTabInNewDoc.name}: No tables copied to first tab in doc id: ${googleDocID}.`
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      copied: [],
+      skipped: tablesToCopy,
+      googleDocID,
+      docUrl: `https://docs.google.com/document/d/${googleDocID}`,
+      message: `Exception occurred: ${err}`,
+      error: err
+    };
+  }
+};
+
+
+/**
+ * Extracts text from each cell of a table (returns 2D array of cell texts)
+ * @param {GoogleAppsScript.Document.Table} table
+ * @returns {Object} { ok, tableTexts, messages }
+ */
+const extractTableTexts = table => {
+  try {
+    const numRows = table.getNumRows();
+    const tableTexts = [];
+    for (let r = 0; r < numRows; r++) {
+      const row = table.getRow(r);
+      const numCells = row.getNumCells();
+      const rowTexts = [];
+      for (let c = 0; c < numCells; c++) {
+        const cell = table.getCell(r, c);
+        const result = extractTableCellText(cell);
+        rowTexts.push(result.ok ? result.text : null);
+      }
+      tableTexts.push(rowTexts);
+    }
+    return {
+      ok: true,
+      tableTexts,
+      message: 'Extracted all cell texts from table'
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      tableTexts: null,
+      message: `Error extracting table text: ${err}`,
+      error: err
+    };
+  }
+};
+
+/**
+ * Extracts text from all tables (list of 2D arrays of cell texts)
+ * @param {GoogleAppsScript.Document.Table[]} tables
+ * @returns {Object} { ok, allTablesTexts, messages }
+ */
+const extractAllTablesTexts = tables => {
+  try {
+    const allResults = tables.map(extractTableTexts);
+    const ok = allResults.every(res => res.ok);
+    const messages = allResults.map((r, i) => `Table ${i}: ${r.message || ''}`);
+    return {
+      ok,
+      allTablesTexts: allResults.map(res => res.tableTexts),
+      messages,
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      allTablesTexts: null,
+      messages: [`Error extracting texts for tables: ${err}`],
+      error: err
+    };
+  }
+};
+
+
+
+
+
+/*
+Extracts cell text from all rows (skipping the header) of a Google Doc table.
+Fully functional implementation using map and slice.
+
+@param {DocumentApp.Table} table The Google Doc Table element to process.
+@returns {Array<Array<string>>} An array of rows, where each row is an array of cell text strings.
+*/
+const extractTableRows_OLD = table => {
+  const numRows = table.getNumRows();
+
+  Logger.log(`extractTableRows; numTables: ${numRows}`);
+  Logger.log(`extractTableRows; numTables: ${numRows}`);
+
+  // 1. Create an array of row indices starting from 1 (to skip the header at index 0).
+  //    The 'slice(1)' pattern is the most functional way to skip the first element.
+  // 2. Filter: Skip the header row (index 0).
+  // 3. Map: Transform each row index into an array of cell strings.
+  const rowIndices = Array.from({length: numRows}, (_, i) => i); // [0, 1, 2, 3, ...]
+  const dataRowIndices = rowIndices.slice(1); // [1, 2, 3, ...]
+  Logger.log(`extractTableRows; rowIndices: ${rowIndices.length}, dataRowIndices: ${dataRowIndices.length}`);
+
+  const rowsData = dataRowIndices.map(r => {
+    const row = table.getRow(r);
+    const numCells = row.getNumCells();
+
+    // Create an array of cell indices for the current row
+    const cellIndices = Array.from({length: numCells}, (_, c) => c);
+    Logger.log(`extractTableRows.dataRowIndices.map; numCells: ${numCells}`);
+    Logger.log(`extractTableRows.dataRowIndices.map; cellIndices: ${cellIndices}`);
+
+    // Map: Transform each cell index into the cell's trimmed text content
+    const rowData = cellIndices.map(c => {
+      const cell = row.getCell(c);
+      //Logger.log(`extractTableRows; cell: ${cell.getText().trim()}`);
+      return cell.getText().trim();
+    });
+
+    // Logger.log('extractTableRows.dataRowIndices.map;  --------------------------------------------------------------------');
+    // Logger.log(`extractTableRows.dataRowIndices.map; rowData[0] ${rowData[0]}`);
+    // Logger.log(`extractTableRows.dataRowIndices.map; rowData[1] ${rowData[1]}`);
+    // Logger.log(`extractTableRows.dataRowIndices.map; rowData[2] ${rowData[2]}`);
+    // Logger.log('extractTableRows.dataRowIndices.map;  --------------------------------------------------------------------');
+
+    return rowData;
+  });
+
+};
+
+
+/**
+ * Takes in an array of tables, each representing a dailies table entry for a particular day.
+ * Called from menu.js when the user selects 'Import Completed Dailies'.
+ *
+ */
+const extractTablesRows_OLD = (tablesToProcessAsArray) => {
+  //
+  Logger.log(`extractTablesRows; num tablesToProcess: ${tablesToProcessAsArray.length}`);
+
+  // The input to this step is an array of google Table objects
+  // the result of this step is an arrayX of arraysY where
+  // each of the arrayY's in that description is the result of converting a
+  //   google doc table into rows of data
+  const allTablesRowsNested = tablesToProcessAsArray.map(extractTableRows);
+
+  // the result of this step is
+  //   An array of rows.  This array is a concat of each of the array of rows from table in the array of tables.
+  //   each entry in the array of rows continas
+  //      An array of cells from that row.
+  const allTablesRowsFlat = allTablesRowsNested.flat();
+
+  Logger.log(`extractTablesRows; Rows[]: ${allTablesRowsFlat.length}`);
+  Logger.log('extractTablesRows; --------------------------------------------------------------------');
+  Logger.log(`extractTablesRows; allTablesRowsFlat[0]`);
+  Logger.log(`extractTablesRows; ${allTablesRowsFlat[0]}`);
+  Logger.log('extractTablesRows; --------------------------------------------------------------------');
+  Logger.log(`extractTablesRows; allTablesRowsFlat[1]`);
+  Logger.log(`extractTablesRows; ${allTablesRowsFlat[1]}`);
+  Logger.log('extractTablesRows; --------------------------------------------------------------------');
+
+  return okResult(
+    `extractTablesRows: Successfully extracted`,
+    allTablesRowsFlat
+  );
+};
+
+/**
+ * Filters tables by the unchecked checkbox character, extracts all data
+ * rows from each marked table, and returns them as a single flat array.
+ *
+ * @param {Array<DocumentApp.Table>} tables               - All tables from the doc tab
+ * @param {string}                   unCheckedCheckboxChar - Character marking tables for transfer
+ *
+ * @returns {{ ok: boolean, message: string, data: Array<Array<string>>|null }}
+ *   data = flat array of all rows extracted from all marked tables
+
+ */
+const convertDocTablestoData = (tables) => {
+  Logger.log(`Entered: convertDocTablestoData`);
+
+  // --- Guard: validate inputs ---
+  if (!tables || !Array.isArray(tables)) {
+    return failResult('extractTablesRows: tables must be an array');
+  }
+    // --- Step 2: Collect all rows from marked tables ---
+  const collectResult = collectRowsFromTables(tables);
+  if (!collectResult.ok) {
+    return failResult(collectResult.message);
+  }
+
+  Logger.log(`extractTablesRows: total rows=${collectResult.data.length}`);
+  return okResult(
+    `extractTablesRows: Successfully extracted ${collectResult.data.length} row(s) from ${tables.length} table(s)`,
+    collectResult.data
+  );
+};
+
+
+/**
+ * Extracts cell text from all rows (skipping the header) of a Google Doc table.
+ * Fully functional implementation using map and slice.
+ *
+ * @param {DocumentApp.Table} table The Google Doc Table element to process.
+ * @returns {Array<Array<string>>} An array of rows, where each row is an array of cell text strings.
+ */
+const extractTableRows_OLD = table => {
+
+  const numRows = table.getNumRows();
+  Logger.log(`extractTableRows; numTables: ${numRows}`);
+
+  // Let's say the daily table has 5 rows so numRows = 5.  The first row is the header.  The other 4 rows are the notes,
+  //  one row per person
+  // `Array.from({length: 5}, (_, i) => i)` is just a way of saying **"give me an array of numbers from 0 to 4"**.
+  // The `_` means "I don't care about this argument, I only want the index `i`".
+  const rowIndices = Array.from({length: numRows}, (_, i) => i); // [0, 1, 2, 3, ...]
+
+  //`slice(1)` means **"give me everything from position 1 onwards"** — which drops Row 0 (the 🟪 header row).
+  const dataRowIndices = rowIndices.slice(1); // [1, 2, 3, ...]
+
+  Logger.log(`extractTableRows; rowIndices: ${rowIndices.length}, dataRowIndices: ${dataRowIndices.length}`);
+
+  // `map` loops over `[1, 2, 3, 4]` and transforms each index into an array of cell strings.
+  const rowsData = dataRowIndices.map(r => {
+    const row = table.getRow(r);
+    const numCells = row.getNumCells();
+
+    // Create an array of cell indices for the current row
+    const cellIndices = Array.from({length: numCells}, (_, c) => c);
+    Logger.log(`extractTableRows.dataRowIndices.map; numCells: ${numCells}`);
+    Logger.log(`extractTableRows.dataRowIndices.map; cellIndices: ${cellIndices}`);
+
+    // Map: Transform each cell index into the cell's trimmed text content
+    const rowData = cellIndices.map(c => {
+      const cell = row.getCell(c);
+      //Logger.log(`extractTableRows; cell: ${cell.getText().trim()}`);
+      return cell.getText().trim();
+    });
+
+    // Logger.log('extractTableRows.dataRowIndices.map;  --------------------------------------------------------------------');
+    // Logger.log(`extractTableRows.dataRowIndices.map; rowData[0] ${rowData[0]}`);
+    // Logger.log(`extractTableRows.dataRowIndices.map; rowData[1] ${rowData[1]}`);
+    // Logger.log(`extractTableRows.dataRowIndices.map; rowData[2] ${rowData[2]}`);
+    // Logger.log('extractTableRows.dataRowIndices.map;  --------------------------------------------------------------------');
+
+    return rowData;
+  });
+
+};
+
+
+/*
+  // const firstTable = tablesSubset(tables, checkedCheckboxChar )[0];
+  //const rows =   extractTableRows(firstTable);
+  if ( appendTableRowsToSheet
+       (extractTablesRows
+          (tables,unCheckedCheckboxChar),sheetID,sheetTabTitle
+        )
+      )
+  {
+    const replacedChar = replaceCharInTablesInPlace(sub.tab.asDocumentTab().getBody(),unCheckedCheckboxChar,checkedCheckboxChar)
+
+
+    Logger.log(`${replacedChar.message}`);
+  } else {
+    Logger.log(`No rows were appended and no tables were marked as complete}`);
+  }
+*/

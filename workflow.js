@@ -5,20 +5,8 @@
 // Reads like a plain English description of the process.
 // =====================================================================
 
-const getRequiredInitInfo = () => ({
-  sheetID: '1y2Frx8OJoKtVdTtfGdngpabnipCA96DylhODX82HZwQ',
-  sheetInpuTabTitle: 'DailiesXferMetaData',
-  maxInputRows: 20,
-});
 
-const getConfigHash = () => ({
-  sheetTabTitle:         undefined,
-  unCheckedCheckboxChar: undefined,
-  checkedCheckboxChar:   undefined,
-  docId:                 undefined,
-  topTabTitle:           undefined,
-  subTabTitle:           undefined,
-});
+
 
 const getValidators = () => [
   checkIsAttributeUnique,
@@ -97,12 +85,24 @@ function transferDailiesWorkflow() {
     ui.alert('Document Error', markedTablesResult.message, ui.ButtonSet.OK);
     return;
   }
-
   const markedTables = markedTablesResult.data;
   Logger.log(`transferDailiesWorkflow: found ${markedTables.length} marked tables`);
 
+  // Flatten Table data
+  constAllRowsFlattenedResult = collectRowsFromTables(markedTablesResult.data)
+  if (!constAllRowsFlattenedResult.ok) {
+    ui.alert('Document Error', constAllRowsFlattenedResult.message, ui.ButtonSet.OK);
+    return;
+  }
+  const allTablesRowsFlat = constAllRowsFlattenedResult.data;
+
   // --- Step 3: Write table data to the Google Sheet ---
-  // TODO: implement writeMarkedTablesToSheet()
+  const appendTableRowsToSheetResult = appendTableRowsToSheet ( allTablesRowsFlat, config.sheetID, config.sheetTabTitle);
+  if (!appendTableRowsToSheetResult.ok) {
+    ui.alert('Document Error', appendTableRowsToSheetResult.message, ui.ButtonSet.OK);
+    return;
+  }
+
 
   // --- Step 4: Mark transferred tables as complete ---
   // TODO: implement markTablesAsComplete()
