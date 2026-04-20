@@ -7,6 +7,9 @@
  * @returns {DocumentApp.Tab|null} The DocumentApp.Tab object if found, otherwise null.
  */
 const getTabByTitle = (tabs, targetTitle) => {
+  const functionName = 'getTabByTitle';
+  Logger.log(`${functionName} Started.`);
+
   // Use Array.prototype.find: declarative, no mutation
   const tab = tabs.find(tab => tab.getTitle() === targetTitle);
 
@@ -98,18 +101,21 @@ const extractRowDataFromOneTable = (table) => {
  *
  * @returns {{ ok: boolean, message: string, data: Array<Array<string>>|null }}
  *   data = flat array of all rows from all tables, header rows excluded
+ *   e.g. data[0] = ["Alice", "30", "Engineer"];
  */
 const collectRowsFromTables = (tables) => {
-  Logger.log(`Entered: collectRowsFromTables`);
-   
+  const functionName = 'collectRowsFromTables';
+  Logger.log(`${functionName}. Started.`);
+  let returnResult;
+
   // !tables1 catches:  null— was never set, undefined— was never passed in, any other falsy value
   // !Array.isArray(tables) catches: Catches cases where tables exists but is the wrong type, for example: a single
   //    Table object instead of an array of them,- a string, - a number, - an objec {}
   // finally: tables.length === 0 catchs if the array is empty
   if (!tables || !Array.isArray(tables) || tables.length === 0) {
-    return failResult('collectRowsFromTables: tables must be a non-empty array');
-  }  
-  
+    return theResults(false, ` tables must be a non-empty array'`, functionName);
+  }
+
   // --- Extract rows from each table ---
   // We started with an array of tables, now we need to extract rows from each table
   // extractedTableRows is an array of arrays of strings, each representing a row of data
@@ -118,16 +124,12 @@ const collectRowsFromTables = (tables) => {
   const extractedTableRows = tables.map(extractRowDataFromOneTable);
 
   // --- Unwrap and flatten ---
-  const allRowsFlat = const allRowsFlat = extractedTableRows.flat();
+  const allRowsFlat = extractedTableRows.flat();
   if (allRowsFlat.length === 0) {
-    return failResult('collectRowsFromTables: No rows were extracted from any table');
+    return theResults(false, ` No rows were extracted from any table`, functionName);
   }
 
-  Logger.log(`collectRowsFromTables: total rows=${allRowsFlat.length}`);
-  return okResult(
-    `collectRowsFromTables: Successfully collected ${allRowsFlat.length} row(s) from ${tables.length} table(s)`,
-    allRowsFlat
-  );
+  return theResults(true, ` Collected ${allRowsFlat.length} row(s) from ${tables.length} table(s)`, functionName, allRowsFlat)
 };
 
 
@@ -143,18 +145,16 @@ const collectRowsFromTables = (tables) => {
  *   data = array of marked Table objects
  */
 const getMarkedTables = (docTab, unCheckedCheckboxChar) => {
-  Logger.log(`Entered: getMarkedTables unCheckedCheckboxChar=${unCheckedCheckboxChar}`);
+  const functionName = 'getMarkedTables';
+  Logger.log(`${functionName}. Started.`);
+  let returnResult;
+
 
   // --- Guard: validate inputs ---
-  if (!docTab) {
-    return failResult('getMarkedTables: docTab is null or undefined');
-  }
-  if (!unCheckedCheckboxChar || unCheckedCheckboxChar.trim() === '') {
-    return failResult('getMarkedTables: unCheckedCheckboxChar is null or blank');
-  }
+  if (!docTab) return theResults(false, 'getMarkedTables: docTab is null or undefined', functionName);
 
   if (!unCheckedCheckboxChar || unCheckedCheckboxChar.trim() === '') {
-    return failResult('extractTablesRows: unCheckedCheckboxChar is null or blank');
+    return theResults(false, 'unCheckedCheckboxChar is null or blank', functionName);
   }
 
   // --- Get all tables from the tab body ---
@@ -162,12 +162,10 @@ const getMarkedTables = (docTab, unCheckedCheckboxChar) => {
   try {
     tables = docTab.asDocumentTab().getBody().getTables();
   } catch (err) {
-    return failResult(`getMarkedTables: Could not read tables from tab - ${err.message}`);
+    return theResults(false, `Could not read tables from tab - ${err.message}`, functionName);
   }
 
-  if (!tables || tables.length === 0) {
-    return failResult('getMarkedTables: No tables found in tab');
-  }
+  if (!tables || tables.length === 0) return theResults(false, 'No tables found in tab', functionName);
   Logger.log(`getMarkedTables: found ${tables.length} total tables`);
 
   // --- Filter to only the marked tables ---
@@ -175,18 +173,15 @@ const getMarkedTables = (docTab, unCheckedCheckboxChar) => {
   try {
     tablesToProcess = tablesSubset(tables, unCheckedCheckboxChar);
   } catch (err) {
-    return failResult(`getMarkedTables: Could not filter tables - ${err.message}`);
+    return theResults(false, `getMarkedTables: Could not filter tables - ${err.message}`, functionName);
   }
 
   if (!tablesToProcess || tablesToProcess.length === 0) {
-    return failResult(`getMarkedTables: No tables marked with: ${unCheckedCheckboxChar}`);
+    return theResults(false, `No tables marked with: ${unCheckedCheckboxChar}`, functionName);
   }
   Logger.log(`getMarkedTables: found ${tablesToProcess.length} marked tables`);
 
-  return okResult(
-    `getMarkedTables: Successfully found ${tablesToProcess.length} marked table(s)`,
-    tablesToProcess
-  );
+  return theResults(true, `Found ${tablesToProcess.length} marked table(s)`, functionName, tablesToProcess);
 };
 
 /**
@@ -200,15 +195,19 @@ const getMarkedTables = (docTab, unCheckedCheckboxChar) => {
  * @returns {{ ok: boolean, message: string, data: DocumentTab|null }}
  *   data = the child tab object if found
  */
+ 
 const getDocSubTab = (docId, topTabTitle, subTabTitle) => {
-  Logger.log(`Entered: getDocSubTab docId=${docId} topTabTitle=${topTabTitle} subTabTitle=${subTabTitle}`);
+  const functionName = 'getDocSubTab';
+  Logger.log(`${functionName} Started.`);
+  let returnResult;
+  // Logger.log(`docId=${docId} topTabTitle=${topTabTitle} subTabTitle=${subTabTitle}`);
 
   // --- Open the Google Doc ---
   let doc;
   try {
     doc = DocumentApp.openById(docId);
   } catch (err) {
-    return failResult(`getDocSubTab: Could not open document with id: ${docId} - ${err.message}`);
+    return theResults(false, `Could not open document with id: ${docId} - ${err.message}`, functionName);
   }
   Logger.log(`getDocSubTab: opened doc: ${doc.getName()}`);
 
@@ -216,7 +215,7 @@ const getDocSubTab = (docId, topTabTitle, subTabTitle) => {
   const topTabs   = doc.getTabs();
   const topResult = getTabByTitle(topTabs, topTabTitle);
   if (!topResult.ok) {
-    return failResult(`getDocSubTab: Could not find top tab: ${topTabTitle} in doc: ${doc.getName()}`);
+    return theResults(false, ` Could not find top tab: ${topTabTitle} in doc: ${doc.getName()}`, functionName);
   }
   Logger.log(`getDocSubTab: found top tab: ${topResult.tab.getTitle()}`);
 
@@ -224,18 +223,15 @@ const getDocSubTab = (docId, topTabTitle, subTabTitle) => {
   const subTabs   = topResult.tab.getChildTabs();
   const subResult = getTabByTitle(subTabs, subTabTitle);
   if (!subResult.ok) {
-    return failResult(`getDocSubTab: Could not find sub tab: ${subTabTitle} under top tab: ${topTabTitle}`);
+    return theResults(false, ` Could not find sub tab: ${subTabTitle} under top tab: ${topTabTitle}`, functionName);
   }
   Logger.log(`getDocSubTab: found sub tab: ${subResult.tab.getTitle()}`);
 
   // --- Return the sub tab ---
-  return okResult(
-    `getDocSubTab: Successfully found sub tab: ${subTabTitle}`,
-    subResult.tab
-  );
+  return theResults(true, `found sub tab: ${subTabTitle}`, functionName, subResult.tab);
 };
 
- ***************************************************************************************************************************
+ /***************************************************************************************************************************
  */
 const replaceCheckInTopLeftCell = table => {
   const checkedCheckboxChar = '✔';
@@ -268,4 +264,125 @@ const replaceCheckInTopLeftCell = table => {
 
   // Explicit result: replacement made, return new table
   return { ok: true, table: copy };
+};
+
+
+/**
+ * Extracts tables from the tab that are marked with an unchecked check box,
+ * returns an array of arrays, i.e. arry[0][array of data representing a single table row]
+ *
+ * @param {string} docId
+ * @param {string} topTabTitle
+ * @param {string} subTabTitle
+ * @param {string} unCheckedCheckboxChar
+ *
+ *
+ * @returns {Result}
+ *   data = array of Line Entries
+ *   e.g.
+ *   data = [
+ *   ["col1", "col2", "col3"],
+ *   ["col1", "col2", "col3"],
+ *   ]
+ *
+ */
+const getMarkedTablesFromDoc = (docId, topTabTitle, subTabTitle,  unCheckedCheckboxChar) => {
+  const functionName = 'getMarkedTablesFromDoc';
+  Logger.log(`${functionName}. Started.`);
+  let returnResult;
+
+  // --- Step: Get the correct Google Doc tab ---
+  // TODO: make sure all upperlevel functions are returning the lower layer errors upwards.
+  returnResult = getDocSubTab(docId, topTabTitle, subTabTitle,);
+  if (!returnResult.ok)  return theResults(false, returnResult.message, functionName);
+  const subTab = returnResult.data;
+  Logger.log(`${functionName}: subTab found: ${subTab.getTitle()}`);
+
+  // --- Step: Extract tables marked for transfer ---
+  returnResult = getMarkedTables(subTab, unCheckedCheckboxChar);
+  if (!returnResult.ok)  return theResults(false, returnResult.message, functionName);
+  const markedTables = returnResult.data;
+  Logger.log(`${functionName}: found ${markedTables.length} marked tables`);
+
+  returnResult = collectRowsFromTables(markedTables);
+  if (!returnResult.ok)  return theResults(false, returnResult.message, functionName);
+  flatAllRowsFromTables = returnResult.data;
+
+  // debug:
+  // print out the resulting tabular data
+  for (let i = 0; i < flatAllRowsFromTables.length; i++) {        // outer loop: each line
+    let line = flatAllRowsFromTables[i];
+    let lineStr = "";
+   for (let j = 0; j < line.length; j++) {      // inner loop: each cell in line
+      lineStr += (j > 0 ? "\t" : "") + line[j];  // separate cells with a tab
+    }
+    Logger.log(`${lineStr}`);
+  }
+
+  return theResults(true, 'Success', functionName, flatAllRowsFromTables);
+};
+
+const markTablesAsComplete = (docId, topTabTitle, subTabTitle,  unCheckedCheckboxChar, checkedCheckboxChar) => {
+  const functionName = 'markTablesAsComplete';
+  Logger.log(`${functionName}. Started.`);
+  let returnResult;
+
+  // --- Step: Get the correct Google Doc tab ---
+  // TODO: make sure all upperlevel functions are returning the lower layer errors upwards.
+  returnResult = getDocSubTab(docId, topTabTitle, subTabTitle,);
+  if (!returnResult.ok) return theResults(false, returnResult.message, functionName);
+  const subTab = returnResult.data;
+
+  returnResult = replaceCharInTablesInPlace( subTab, unCheckedCheckboxChar, checkedCheckboxChar);
+  if (!returnResult.ok) return theResults(false, returnResult.message, functionName);
+
+  Logger.log(`markTablesAsComplete. Exiting`);
+  return theResults(true, 'Success.', functionName);
+
+
+};
+
+/* TBH. I have never taken this function apart to really understand how it works.
+ *
+ * Replaces in the top-left cell of every table in a document body (in-place).
+ * Returns an object describing what was changed.
+ *
+ * @param {GoogleAppsScript.Document.Body} body
+ * @returns {Object} result
+ *   {number[]} changedIndices - Array of table indices that were changed.
+ *   {number} changedCount - How many tables were updated.
+ *   {number} tableCount - Total tables processed.
+ *   {boolean} ok - True if any changes were made.
+ */
+const replaceCharInTablesInPlace = ( docTab, findChar, replaceWithChar) => {
+  const functionName = 'replaceCharInTablesInPlace';
+  Logger.log(`${functionName}. Started.`);
+  let returnResult;
+
+  let tables;
+  try {
+    tables = docTab.asDocumentTab().getBody().getTables();
+  } catch (err) {
+    return theResults(false, `Could not read tables from tab - ${err.message}`, functionName);
+  }
+
+  const changedIndices = [];
+  for (let i = 0; i < tables.length; i++) {
+    const table = tables[i];
+    if (table.getNumRows() > 0 && table.getRow(0).getNumCells() > 0) {
+      const cell = table.getCell(0, 0);
+      const text = cell.getText();
+      if (text.includes(findChar)) {
+        // Simplistic replace. Will replace all instances
+        const regex = new RegExp(findChar, 'g');
+        cell.setText(text.replace(regex, replaceWithChar));
+        changedIndices.push(i);
+      }
+    }
+  }
+
+  let returnMessage = `No checkmarks found in any table(s).`;
+  if (changedIndices.length > 0) returnMessage = `Changed ${changedIndices.length} table(s).`;
+  return theResults(true, 'Complete. ' + returnMessage, functionName);
+
 };

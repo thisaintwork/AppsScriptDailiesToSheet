@@ -1,5 +1,69 @@
 // utils.js
-/* 1️⃣
+/**
+ * Standard result object for this project.
+ *
+ * @typedef {Object} Result
+ * @property {boolean} ok       - True on success, false on failure.
+ * @property {string}  message  - Description of the outcome.
+ * @property {*}       data     - Payload data (or null on failure).
+ */
+
+// /**
+//  * @param {string} message
+//  * @param {*} [data=null]
+//  * @param {string} [fn=""]
+//  * @returns {Result}
+//  */
+// const okResult = (message, data = null, fn = "") => ({
+//   ok:      true,
+//   message: `${fn}. ${message}`,
+//   data:    data
+// });
+//
+// /**
+//  * @param {string} message
+//  * @param {string} [fn=""]
+//  * @returns {Result}
+//  */
+// const failResult = (message) => {
+//   Logger.log(message);
+//   return ({
+//     ok:      false,
+//     message: `${message}`,
+//     data:    null
+//   });
+// }
+
+/**
+ * @param {string} message
+ * @param {string} functionName
+ * @returns {Result}
+ */
+const theResults = (pass = false, message, functionName, data = null) => {
+  const passString = pass ? "Success" : "Error";
+  Logger.log(`${functionName}. ${passString}. ${message}. Is data null? = ${data === null}`);
+  return ({
+    ok:      pass,
+    message: message,
+    data:    data
+  });
+}
+
+/**
+ * This is the list of validators to run on the input data.
+ * The order of the validators matters!
+ * See the comments in each validator function for more details.
+ * Don't change the order of the validators or make edits without understanding
+ * the implications.
+  */
+const getValidators = () => [
+  checkIsAttributeUnique,
+  checkIsAttributeKnownKey,
+  checkIsAttributeValueDefined,
+  assignValuesToHash,
+];
+
+/*
  *************************************************************************************************************************** 
  * Generates a timestamp string for the current date and time in 
  * YYYYMMDDHHMMSS format (e.g., 20250930172629).
@@ -17,18 +81,6 @@ const getTimestampString = () => {
     pad(now.getSeconds())
   ].join('');
 };
-
-const okResult = (message, data = null) => ({
-  ok:      true,
-  message: message,
-  data:    data
-});
-
-const failResult = (message) => ({
-  ok:      false,
-  message: message,
-  data:    null
-});
 
 
   /**
@@ -49,45 +101,53 @@ const failResult = (message) => ({
  * @returns {{ ok: boolean, message: string, data: Object|null }}
  *   data = final state of hash after all validators processed
  */
-const processTuplesThroughValidators = (tuples, hash, validators) => {
-  Logger.log(`Entered: processTuplesThroughValidators`);
+const populateInputValues = (tuples, hash, validators) => {
+  const functionName = `populateInputValues`;
+  Logger.log(`${functionName}. Started.`);
+  let returnResult;
+
 
   // --- Guard: validate inputs ---
   if (!tuples || !Array.isArray(tuples)) {
-    return failResult('tuples must be an array');
+    return theResults(false, 'tuples must be an array', functionName);
+
   }
   if (!hash || typeof hash !== 'object') {
-    return failResult('hash must be an object');
+    return theResults(false, 'hash must be an object', functionName);
   }
   if (!validators || !Array.isArray(validators)) {
-    return failResult('validators must be an array');
+    return theResults(false, 'validators must be an array', functionName);
   }
 
   // --- Start with a clean copy of the incoming hash ---
   let currentHash = { ...hash };
 
   // --- Loop: each validator runs once against the full tuples array ---
-  Logger.log(`>> Start Validator Loop`);
+  Logger.log(`>>populateInputValues. Start Validator Loop`);
   for (const validator of validators) {
 
     Logger.log(`>> Running validator: ${validator.name}`);
     const result = validator(tuples, currentHash);
-    Logger.log(`>> ${validator.name} result: ${result.ok} - ${result.message}`);
-
-    // Any validator failure stops everything
     if (!result.ok) {
-      return failResult(result.message);
+      return theResults(false, result.message, functionName);
     }
+    Logger.log(`>> ${validator.name} result: ${result.ok} - ${result.message}`);
 
     // Carry the updated hash forward to the next validator
     currentHash = { ...result.data };
   }
+  Logger.log(`>>populateInputValues. Completed Validator Loop`);
+
+  // print out the required data keys along with what
+  // is in the actual config data
+  Object.keys(hash).forEach(function(key) {
+    const value = currentHash[key];
+    Logger.log(`populateInputValues. Final. >${key}< = >${value}<`);
+  });
 
   // --- All validators passed ---
-  return okResult('All validators processed successfully', currentHash);
+  return theResults(true, 'Completed.', functionName, currentHash);
 };
-
-
 
 /**
  * Determines whether a tuple should be skipped entirely.
@@ -104,17 +164,20 @@ const processTuplesThroughValidators = (tuples, hash, validators) => {
  *   ok: false = no, continue to validator pipeline
  */
 const okToSkip = (tuple, hash) => {
+  const functionName = 'okToSkip';
+  // Logger.log(`${functionName}. Started.`);
+
   const trimmed = tuple[0].trim().toLowerCase();
 
   if (trimmed === '') {
-    return okResult('empty attribute - skip', { ...hash });
+    return theResults(true, 'empty attribute - skip', functionName);
   }
 
   if (trimmed === 'comment') {
-    return okResult('comment - skip', { ...hash });
+    return theResults(true, 'comment - skip', functionName);
   }
 
-  return failResult('not a skip condition - continue processing');
+  return theResults(false, 'not a skip condition - continue processing', functionName);
 };
 
 
@@ -128,6 +191,9 @@ const okToSkip = (tuple, hash) => {
  * @returns {{ ok: boolean, message: string, data: Object|null }}
  */
 const checkIsAttributeUnique = (tuples, hash) => {
+  const functionName = 'checkIsAttributeUnique';
+  Logger.log(`${functionName}. Started.`);
+
   const seen       = {};
   const duplicates = [];
 
@@ -147,10 +213,10 @@ const checkIsAttributeUnique = (tuples, hash) => {
   }
 
   if (duplicates.length > 0) {
-    return failResult(`Duplicate attribute(s) found: ${duplicates.join(', ')}`);
+    return theResults(false, `Duplicate attribute(s) found: ${duplicates.join(', ')}`, functionName);
   }
 
-  return okResult('No duplicates found', { ...hash });
+  return theResults(true, 'No duplicates found', functionName, {...hash});
 };
 
 
@@ -166,6 +232,10 @@ const checkIsAttributeUnique = (tuples, hash) => {
  *   data = current hash unchanged
  */
 const checkIsAttributeKnownKey = (tuples, hash) => {
+  const functionName = 'checkIsAttributeKnownKey';
+  Logger.log(`${functionName}. Started.`);
+  let returnResult;
+
   const unknownKeys = [];
   const hashByHashKey = getConfigHash();
 
@@ -189,11 +259,8 @@ const checkIsAttributeKnownKey = (tuples, hash) => {
     }
   }
 
-  if (unknownKeys.length > 0) {
-    return failResult(`Unknown attribute(s) found: ${unknownKeys.join(', ')}`);
-  }
-
-  return okResult('All attribute names are known keys', { ...hash });
+  if (unknownKeys.length > 0) return theResults(false, `Unknown attribute(s) found: ${unknownKeys.join(', ')}`, functionName);
+  return theResults(true, 'All attribute names are known keys', functionName, {...hash});
 };
 
 
@@ -210,6 +277,8 @@ const checkIsAttributeKnownKey = (tuples, hash) => {
  *   data = current hash unchanged
  */
 const checkIsAttributeValueDefined = (tuples, hash) => {
+  const functionName = 'checkIsAttributeValueDefined';
+  Logger.log(`${functionName}. Started.`);
   const invalidValues = [];
 
   for (const tuple of tuples) {
@@ -217,30 +286,29 @@ const checkIsAttributeValueDefined = (tuples, hash) => {
     // Skip empty and comment rows
     if (okToSkip(tuple, hash).ok) continue;
 
-    const attributeName = tuple[0];
-    const value         = tuple[1];
+    const attributeName = tuple[0].trim() ;
+    const value         = tuple[1].trim();
+
+    if (value.trim() === '') {
+      invalidValues.push(`[${attributeName}] value is blank`);
+      continue;
+    }
 
     if (value === undefined || value === null) {
-      invalidValues.push(`[${attributeName}] is undefined or null`);
+      invalidValues.push(`[${attributeName}] value is undefined or null`);
       continue;
     }
 
     if (typeof value !== 'string') {
-      invalidValues.push(`[${attributeName}] is not a string: ${value}`);
+      invalidValues.push(`[${attributeName}] value is not a string: ${value}`);
       continue;
     }
 
-    if (value.trim() === '') {
-      invalidValues.push(`[${attributeName}] is blank`);
-      continue;
-    }
   }
 
-  if (invalidValues.length > 0) {
-    return failResult(`Invalid value(s) found: ${invalidValues.join(', ')}`);
-  }
+  if (invalidValues.length > 0) return theResults(false, `Invalid value(s) found: ${invalidValues.join(', ')}`, functionName);
 
-  return okResult('All attribute values are valid', { ...hash });
+  return theResults(true, 'All attribute values are valid', functionName, {...hash});
 };
 
 /**
@@ -254,6 +322,8 @@ const checkIsAttributeValueDefined = (tuples, hash) => {
  *   data = updated copy of hash with all values assigned
  */
 const assignValuesToHash = (tuples, hash) => {
+  const functionName = 'assignValuesToHash';
+  Logger.log(`${functionName}. Started.`);
   const updatedHash = { ...hash };
 
   for (const tuple of tuples) {
@@ -268,5 +338,5 @@ const assignValuesToHash = (tuples, hash) => {
     Logger.log(`assignValuesToHash updatedHash[${attributeName}]=${value}`);
   }
 
-  return okResult('All values assigned to hash', updatedHash);
+  return theResults(true, 'All values assigned to hash', functionName, updatedHash);
 };

@@ -46,7 +46,7 @@ function deleteSnapshotTabs() {
   for (let i = sheets.length - 1; i >= 0; i--) {
     const sheet = sheets[i];
     const sheetName = sheet.getName();
-    const sheetId = sheet.getSheetId(); // Get the unique ID of the sheet
+    const sheetID = sheet.getsheetID(); // Get the unique ID of the sheet
 
     // Check if the sheet is hidden
     if (sheet.isSheetHidden()) {
@@ -65,7 +65,7 @@ function deleteSnapshotTabs() {
       // Before attempting deletion, check if it's the last visible sheet.
       // A spreadsheet must always have at least one visible sheet.
       const visibleSheets = spreadsheet.getSheets().filter(s => !s.isSheetHidden());
-      if (visibleSheets.length === 1 && visibleSheets[0].getSheetId() === sheetId) {
+      if (visibleSheets.length === 1 && visibleSheets[0].getsheetID() === sheetID) {
         ui.alert("Warning", `Cannot delete the last visible sheet: '${sheetName}'. A spreadsheet must always have at least one visible sheet.`, ui.ButtonSet.OK);
         Logger.log(`Cannot delete last visible sheet: ${sheetName}`);
         continue; // Skip to the next sheet
@@ -73,7 +73,7 @@ function deleteSnapshotTabs() {
 
       // Attempt to delete the sheet with error handling
       try {
-        ui.alert("Information", `Attempting to delete sheet: '${sheetName}', id: '${sheetId}', index: '${i}'.`, ui.ButtonSet.OK);
+        ui.alert("Information", `Attempting to delete sheet: '${sheetName}', id: '${sheetID}', index: '${i}'.`, ui.ButtonSet.OK);
         spreadsheet.deleteSheet(sheet);
         sheetsDeletedCount++;
         Logger.log(`Successfully deleted sheet: ${sheetName}`);

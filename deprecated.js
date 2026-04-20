@@ -140,9 +140,9 @@ const checkIsAttributeUnique_OLD = (tuple, hash) => {
   Logger.log(`checkIsAttributeUnique. testing  attributeName: ${attributeName} against hash contents: ${hash[attributeName]}`);
 
   if (hash[attributeName] !== undefined) {
-    return failResult(`Duplicate attribute found: ${attributeName}`);
+    //return failResult(`Duplicate attribute found: ${attributeName}`);
   }
-  return okResult('no duplicate found', { ...hash });
+  //return okResult('no duplicate found', { ...hash });
 };
 
 /**
@@ -172,13 +172,13 @@ const processTuplesThroughValidators_OLD = (tuples, hash, validators) => {
   Logger.log(`Entered: processTuplesThroughValidators`);
   // --- Guard: validate inputs ---
   if (!tuples || !Array.isArray(tuples)) {
-    return failResult('tuples must be an array');
+//return failResult('tuples must be an array');
   }
   if (!hash || typeof hash !== 'object') {
-    return failResult('hash must be an object');
+    //return failResult('hash must be an object');
   }
   if (!validators || !Array.isArray(validators)) {
-    return failResult('validators must be an array');
+   // return failResult('validators must be an array');
   }
 
   // --- Start with a clean copy of the incoming hash ---
@@ -191,7 +191,7 @@ const processTuplesThroughValidators_OLD = (tuples, hash, validators) => {
     Logger.log(`>> OuterLoop: tuple[0]=${tuple[0]}, tuple[1]=${tuple[1]}`);
     // Guard: make sure this tuple is usable
     if (!Array.isArray(tuple) || tuple.length < 2) {
-      return failResult(`Invalid tuple encountered: ${JSON.stringify(tuple)}`);
+     //return failResult(`Invalid tuple encountered: ${JSON.stringify(tuple)}`);
     }
 
     // --- Skip check: runs before the validator pipeline ---
@@ -210,7 +210,7 @@ const processTuplesThroughValidators_OLD = (tuples, hash, validators) => {
 
       // Any validator failure stops everything
       if (!result.ok) {
-        return failResult(result.message);
+        //return failResult(result.message);
       }
 
       // Carry the updated hash forward to the next validator
@@ -698,7 +698,7 @@ const extractTablesRows_OLD = (tablesToProcessAsArray) => {
   Logger.log(`extractTablesRows; ${allTablesRowsFlat[1]}`);
   Logger.log('extractTablesRows; --------------------------------------------------------------------');
 
-  return okResult(
+  //return okResult(
     `extractTablesRows: Successfully extracted`,
     allTablesRowsFlat
   );
@@ -720,16 +720,16 @@ const convertDocTablestoData = (tables) => {
 
   // --- Guard: validate inputs ---
   if (!tables || !Array.isArray(tables)) {
-    return failResult('extractTablesRows: tables must be an array');
+    //return failResult('extractTablesRows: tables must be an array');
   }
     // --- Step 2: Collect all rows from marked tables ---
   const collectResult = collectRowsFromTables(tables);
   if (!collectResult.ok) {
-    return failResult(collectResult.message);
+    //return failResult(collectResult.message);
   }
 
   Logger.log(`extractTablesRows: total rows=${collectResult.data.length}`);
-  return okResult(
+  //return okResult(
     `extractTablesRows: Successfully extracted ${collectResult.data.length} row(s) from ${tables.length} table(s)`,
     collectResult.data
   );

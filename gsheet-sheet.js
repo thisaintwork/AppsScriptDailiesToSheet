@@ -16,8 +16,6 @@ var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
 
 // Update cell A1
 sheet.getRange(cellAddress).setValue("Hello world!");
-
-
 }
 
 // ***********************************************************************************************************************************************************************************************
@@ -89,38 +87,27 @@ function UnhideAllColumns() {
 /**
  * Appends the extracted row data to a specific tab within a Google Sheet.
  * * @param {Array<Array<string>>} extractedRows - The array of rows to write.
- * @param {string} sheetId - The ID of the target Google Sheet.
+ * @param {string} sheetID - The ID of the target Google Sheet.
  * @param {string} targetSheetName - The name of the specific tab (worksheet) to append to.
  * @returns {boolean} True if the append was successful, false otherwise.
  */
-const appendTableRowsToSheet = ( extractedRows, sheetId, targetSheetName ) => {
+const appendTableRowsToSheet = ( extractedRows, sheetID, targetSheetName ) => {
+  const functionName = 'appendTableRowsToSheet';
+  Logger.log(`${functionName}. Started.`);
+  let returnResult;
+
   if (extractedRows.length === 0 || extractedRows[0].length === 0) {
-    Logger.log('No valid data rows to append.');
-      return failResult(
-        `No valid data rows to append.`
-      );
+    return theResults(false, 'No valid data rows to append.', functionName);
   }
-
-
-  Logger.log(`appendTableRowsToSheet: extractedRows.length: ${extractedRows.length}`);
-
+  Logger.log(`appendTableRowsToSheet. sheetID = ${sheetID}. targetSheetName = ${targetSheetName}.  extractedRows.length = ${extractedRows.length}`);
   try {
-    const spreadsheet = SpreadsheetApp.openById(sheetId);
-    
-    // ➡️ Change is here: Use getSheetByName() instead of getActiveSheet()
-    const sheet = spreadsheet.getSheetByName(targetSheetName); 
-
-    if (!sheet) {
-        Logger.log(`appendTableRowsToSheet: ERROR: Could not find sheet tab named: ${targetSheetName}`);
-        return failResult(
-          `appendTableRowsToSheet: ERROR: Could not find sheet tab named: ${targetSheetName}`
-        );
-    }
+    const spreadsheet = SpreadsheetApp.openById(sheetID);
+    const sheet = spreadsheet.getSheetByName(targetSheetName);
+    if (!sheet) return theResults(false, `Could not find sheet tab named: ${targetSheetName}`, functionName);
 
     // Determine the starting row for the new data
-    var startRow = sheet.getLastRow() + 1;
-    
     // ➡️ NEW: Create modified rows with prepended row numbers
+    var startRow = sheet.getLastRow() + 1;
     const modifiedRows = extractedRows.map((row, index) => {
       const rowNumber = startRow + index;
       return [rowNumber, ...row]; // Prepend row number to each row
@@ -129,8 +116,7 @@ const appendTableRowsToSheet = ( extractedRows, sheetId, targetSheetName ) => {
     const numRows = modifiedRows.length;
     const numColumns = modifiedRows[0].length; // Now includes the extra column
     
-    Logger.log(`appendTableRowsToSheet: numRows: ${numRows}, numColumns: ${numColumns}, startRow: ${startRow}`);
-    Logger.log(`appendTableRowsToSheet: modifiedRows[0]: ${modifiedRows[0]}`);
+    Logger.log(`appendTableRowsToSheet: numRows: ${numRows}, numColumns: ${numColumns}, startRow: ${startRow}, modifiedRows[0]: ${modifiedRows[0]}`);
     
     // Define the target range (starting at column 1, now with extra column)
     const range = sheet.getRange(startRow, 1, numRows, numColumns);
@@ -138,76 +124,67 @@ const appendTableRowsToSheet = ( extractedRows, sheetId, targetSheetName ) => {
     // Append all rows at once for optimal performance
     range.setValues(modifiedRows);
 
-    Logger.log(`appendTableRowsToSheet: Successfully appended ${numRows} rows to tab: ${targetSheetName}`);
-    return okResult(
-          `appendTableRowsToSheet: Successfully appended ${numRows} rows to tab: ${targetSheetName}`
-        );
+    return theResults(true, `Successfully appended ${numRows} rows to tab: ${targetSheetName}`, functionName);
 
   } catch (error) {
-    Logger.log(`appendTableRowsToSheet: ERROR: Failed to open sheet or append data: ${error}`);
-    return failResult(
-        `appendTableRowsToSheet: ERROR: Failed to open sheet or append data: ${error}`
-      );
+    return theResults(false, `Failed to open sheet or append data: ${error}`, functionName);
   }
 }
 
 /**
- * Reads up to maxRows rows from a named tab in a Google Sheet and returns
- * the contents as an array of tuples.
- * Each tuple is [columnA, columnB] representing one row.
+ * Reads rows from a named tab in a Google Sheet and returns a hash of inputs.
  *
- * Pre-conditions:
- *   - sheetId is a valid Google Sheet ID
- *   - tabName is the name of an existing tab in that sheet
- *   - maxRows is a positive integer
- *
- * @param {string} sheetId  - The ID of the Google Sheet
- * @param {string} tabName  - The name of the tab to read from
- * @param {number} maxRows  - Maximum number of rows to read
- *
- * @returns {{ ok: boolean, message: string, data: Array<Array<string>>|null }}
- *   data = array of tuples [ [attributeName, value], ... ]
+ * @param sheetID defined within config.js. Accessed via getRequiredInitInfo().sheetID
+ * @param tabName defined within config.js. Accessed via getRequiredInitInfo().sheetTabTitle
+ * @param numRows defined within config.js. Accessed via getRequiredInitInfo().maxInputRows
+ * @param requiredAttribsHash defined within config.js. Accessed via getConfigHash().
+ *        This is the initialization hash that defines the required attributes.
+ *        It never gets values for it's keys.
+ * @param validatorFunctions - List of functions that validate the input data.
+ * @returns {Result} - An object containing the result of the operation.
  */
-const readTabAsTuples = (
-  sheetId,
-  tabName,
-  maxRows
-) => {
-  Logger.log(`Entered: readTabAsTuples sheetId=${sheetId} tabName=${tabName} maxRows=${maxRows}`);
+const readInput = (sheetID, tabName, numRows, requiredAttribsHash, validatorFunctions) => {
+  const functionName = 'readInput';
+  Logger.log(`${functionName}. Started.`);
+  let returnResult;
 
-  // --- Find the spreadsheet ---
+
   let spreadsheet;
   try {
-    spreadsheet = SpreadsheetApp.openById(sheetId);
+    spreadsheet = SpreadsheetApp.openById(sheetID);
   } catch (err) {
-    return failResult(`readTabAsTuples: Could not open spreadsheet with id: ${sheetId} - ${err.message}`);
+    return theResults(false, ` Could not open spreadsheet with id: ${sheetID} - ${err.message}`, functionName);
   }
 
   // --- Find the tab ---
   const sheet = spreadsheet.getSheetByName(tabName);
   if (!sheet) {
-    return failResult(`readTabAsTuples: Could not find tab named: ${tabName} in spreadsheet: ${sheetId}`);
+    return theResults(false, `Could not find tab named: ${tabName} in spreadsheet: ${sheetID}`, functionName);
   }
 
   // --- Read the rows ---
   let rawRows;
   try {
-    rawRows = sheet.getRange(1, 1, maxRows, 2).getValues();
+    rawRows = sheet.getRange(1, 1, numRows, 2).getValues();
   } catch (err) {
-    return failResult(`readTabAsTuples: Could not read rows from tab: ${tabName} - ${err.message}`);
+    return theResults(false, ` Could not read rows from tab: ${tabName} - ${err.message}`, functionName);
   }
 
   // --- Convert to tuples ---
   // getValues() returns an array of arrays already
   // We just need to make sure values are strings
   const tuples = rawRows.map(row => [
-    row[0].toString(),
-    row[1].toString(),
+    row[0].toString().trim(),
+    row[1].toString().trim(),
   ]);
 
+    // --- Step Validate and load config ---
+  returnResult = populateInputValues(tuples,requiredAttribsHash,validatorFunctions);
+  //TODO: remove all ui.alerts from anything but workflow
+  if (!returnResult.ok) {
+    return theResults(false, returnResult.message, functionName);
+  }
 
-
-  Logger.log(`readTabAsTuples: read ${tuples.length} tuples from ${tabName}`);
-  return okResult(`Successfully read ${tuples.length} rows from ${tabName}`, tuples);
+  return theResults(true, 'Completed.', functionName, returnResult.data);
 };
 

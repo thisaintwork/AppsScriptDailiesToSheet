@@ -1,13 +1,14 @@
 //config.js
 
-
+// These constants are hardcoded.
+// They are rarely going to change and are needed for the workflow.
 const getRequiredInitInfo = () => ({
   sheetID: '1y2Frx8OJoKtVdTtfGdngpabnipCA96DylhODX82HZwQ',
-  sheetInpuTabTitle: 'DailiesXferMetaData',
-  maxInputRows: 20,
+  sheetInputTabTitle: 'DailiesXferMetaData',
+  inputRows: 20,
 });
 
-
+// This is the canonical hash of all the config keys.
 const getConfigHash = () => ({
   sheetTabTitle:         undefined,
   unCheckedCheckboxChar: undefined,
