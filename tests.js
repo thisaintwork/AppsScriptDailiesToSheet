@@ -106,8 +106,6 @@ const runOneTest = (testName, testCase) => {
 
   Logger.log(`== runOneTest:${testName} START: ===`);
 
-  // todo: I removed the validations on the test data. add back later.
-
   // --- Act ---
   const result = processTuplesThroughValidators(
     testCase.tuples,

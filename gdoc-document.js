@@ -292,7 +292,6 @@ const getMarkedTablesFromDoc = (docId, topTabTitle, subTabTitle,  unCheckedCheck
   let returnResult;
 
   // --- Step: Get the correct Google Doc tab ---
-  // TODO: make sure all upperlevel functions are returning the lower layer errors upwards.
   returnResult = getDocSubTab(docId, topTabTitle, subTabTitle,);
   if (!returnResult.ok)  return theResults(false, returnResult.message, functionName);
   const subTab = returnResult.data;
@@ -328,7 +327,6 @@ const markTablesAsComplete = (docId, topTabTitle, subTabTitle,  unCheckedCheckbo
   let returnResult;
 
   // --- Step: Get the correct Google Doc tab ---
-  // TODO: make sure all upperlevel functions are returning the lower layer errors upwards.
   returnResult = getDocSubTab(docId, topTabTitle, subTabTitle,);
   if (!returnResult.ok) return theResults(false, returnResult.message, functionName);
   const subTab = returnResult.data;

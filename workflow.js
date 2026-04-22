@@ -28,8 +28,8 @@ function transferDailiesWorkflow() {
 
 
   // --- Step 0: Read raw config data from sheet ---
-  const { sheetID, sheetInputTabTitle, inputRows } = getRequiredInitInfo();
-  returnResult = readInput(sheetID,sheetInputTabTitle,inputRows,getConfigHash(),getValidators());
+  const initInfo = getRequiredInitInfo();
+  returnResult = readInput(initInfo.sheetID,initInfo.sheetInputTabTitle,initInfo.inputRows,getConfigHash(),getValidators());
   if (!returnResult.ok) {
     Logger.log(`${errLogString}` +  returnResult.message);
     ui.alert(`${errLogString}`, returnResult.message, ui.ButtonSet.OK);
@@ -42,7 +42,7 @@ function transferDailiesWorkflow() {
   // is in the actual config data
   Object.keys(getConfigHash()).forEach(function(key) {
     const value = config[key];
-    Logger.log(`transferDailiesWorkflow. Input Data: config[getConfigHash()_key] = ${config[key]}`);
+    Logger.log(`transferDailiesWorkflow. debug. Input Data: config[getConfigHash()_key] = ${config[key]}`);
   });
 
   returnResult = getMarkedTablesFromDoc(config.docId, config.topTabTitle, config.subTabTitle, config.unCheckedCheckboxChar);
@@ -63,7 +63,6 @@ function transferDailiesWorkflow() {
   }
 
   // --- Step 4: Mark transferred tables as complete ---
-  // TODO: implement markTablesAsComplete()
   returnResult = markTablesAsComplete(config.docId, config.topTabTitle, config.subTabTitle, config.unCheckedCheckboxChar, config.checkedCheckboxChar);
   if (!returnResult.ok) {
     Logger.log(`${errLogString}` +  returnResult.message);
@@ -73,3 +72,29 @@ function transferDailiesWorkflow() {
 
   Logger.log(`transferDailiesWorkflow: Exiting`);
 }
+
+function createTimestampedSnapshot() {
+  const functionName = 'createTimestampedSnapshot';
+  Logger.log(`${functionName}. Started.`);
+  let returnResult;
+
+  const ui = SpreadsheetApp.getUi(); // Get the UI object for alerts
+
+  const initInfo = getRequiredInitInfo();
+  const newSheetTitle = initInfo.copiedSheetPrefix + "-" + getTimestampString();
+  returnResult = readInput(initInfo.sheetID,initInfo.sheetInputTabTitle,initInfo.inputRows,getConfigHash(),getValidators());
+  if (!returnResult.ok) {
+    Logger.log(`${errLogString}` +  returnResult.message);
+    ui.alert(`${errLogString}`, returnResult.message, ui.ButtonSet.OK);
+    return;
+  }
+  const config = returnResult.data;
+
+
+  returnResult = createCurrentSheetTabSnapshot(config.sheetTabTitle,newSheetName,initInfo.dateHeader,initInfo.topicHeader);
+  if (!returnResult.ok) {
+    ui.alert("Error", returnResult.message, ui.ButtonSet.OK);
+    return;
+  }
+  ui.alert("Success", `Values and dimensions from '${SOURCE_SHEET_NAME}' have been copied to a new sheet: '${newSheetName}'!`, ui.ButtonSet.OK);
+};

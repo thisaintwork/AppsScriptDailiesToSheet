@@ -180,11 +180,121 @@ const readInput = (sheetID, tabName, numRows, requiredAttribsHash, validatorFunc
 
     // --- Step Validate and load config ---
   returnResult = populateInputValues(tuples,requiredAttribsHash,validatorFunctions);
-  //TODO: remove all ui.alerts from anything but workflow
   if (!returnResult.ok) {
     return theResults(false, returnResult.message, functionName);
   }
 
   return theResults(true, 'Completed.', functionName, returnResult.data);
+};
+
+const createCurrentSheetTabSnapshot = (sourceSheetName,newSheetName,dateHeader,topicHeader) => {
+  const functionName = 'createCurrentSheetTabSnapshot';
+  Logger.log(`${functionName}. Started.`);
+  let returnResult;
+
+  const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  const sourceSheet = spreadsheet.getSheetByName(sourceSheetName);
+  if (!sourceSheet) {
+    return theResults(false, `Error. Source sheet '${sourceSheetName}' not found. Please check the sheet name.`, functionName);
+  }
+
+  // Get the data range from the source sheet
+  const sourceRange = sourceSheet.getDataRange();
+  const valuesToCopy = sourceRange.getValues();
+
+  // Determine the dimensions of the copied data
+  const numRows = valuesToCopy.length;
+  const numCols = valuesToCopy[0] ? valuesToCopy[0].length : 0; // Handle empty source sheet
+
+  // If there's no data, just create the sheet and exit
+  if (numRows === 0 || numCols === 0) {
+    return theResults(false, `Warning. Could not create a new sheet with the name '${newSheetName}'`, functionName);
+  }
+
+  // Create the new sheet
+  let destinationSheet;
+  try {
+    destinationSheet = spreadsheet.insertSheet(newSheetName);
+  } catch (e) {
+    return theResults(false, `Error. Could not create a new sheet with the name '${newSheetName}'`, functionName);
+  }
+  destinationSheet.setFrozenRows(1);
+  Logger.log(`${functionName}. Created new empty sheet with the name '${newSheetName}'`);
+
+  // Move the new sheet all the way to the right.
+  spreadsheet.setActiveSheet(destinationSheet);
+  spreadsheet.moveActiveSheet(spreadsheet.getSheets().length);
+  Logger.log(`${functionName}. moved '${newSheetName}' to the rightmost position`);
+
+  // Paste values only to the new sheet
+  const destinationRange = destinationSheet.getRange(1, 1, numRows, numCols);
+  destinationRange.setValues(valuesToCopy);
+  destinationRange.setWrapStrategy(SpreadsheetApp.WrapStrategy.WRAP);
+  Logger.log(`${functionName}. '${newSheetName}'. New values copied into the new sheet.`);
+
+  // --- Copy Column Widths ---
+  for (let col = 1; col <= numCols; col++) {
+    const width = sourceSheet.getColumnWidth(col);
+    destinationSheet.setColumnWidth(col, width);
+  }
+  Logger.log(`${functionName}. '${newSheetName}'. Replicate the column widths from the source sheet.`);
+
+
+  // --- Copy Row Heights ---
+  //  for (let row = 1; row <= numRows; row++) {
+  //    const height = sourceSheet.getRowHeight(row);
+  //    destinationSheet.setRowHeight(row, height);
+  //  }
+  // ui.alert("'${newSheetName}' row heights updated");
+
+  // --- NEW COMMANDS HERE: Sorting ---
+  // Find column indices for sorting
+  Logger.log(`${functionName}. '${newSheetName}'. Starting column sorting by '${dateHeader}' and '${topicHeader}'.`);
+  const headers = valuesToCopy[0]; // Assuming headers are in the first row
+  let dateColIndex = -1;
+  let topicColIndex = -1;
+
+  for (let i = 0; i < headers.length; i++) {
+    if (headers[i].toString().trim().toLowerCase() === dateHeader.trim().toLowerCase()) {
+      dateColIndex = i + 1; // Column index is 1-based
+    }
+    if (headers[i].toString().trim().toLowerCase() === topicHeader.trim().toLowerCase()) {
+      topicColIndex = i + 1; // Column index is 1-based
+    }
+  }
+
+  if (dateColIndex === -1) {
+    Logger.log(`${functionName}. '${newSheetName}'. Warning: Could not find column with header '${dateHeader}'. Skipping date sort.`);
+  }
+  if (topicColIndex === -1) {
+    Logger.log(`${functionName}. '${newSheetName}'. Warning: Could not find column with header '${topicHeader}'. Skipping topic sort.`);
+  }
+
+  // Only attempt to sort if at least one column was found and there's more than just the header row
+  if ((dateColIndex !== -1 || topicColIndex !== -1) && numRows > 1) {
+    const sortRange = destinationSheet.getRange(2, 1, numRows - 1, numCols); // Sorts data AFTER the header row
+
+    const sortCriteria = [];
+    if (dateColIndex !== -1) {
+      sortCriteria.push({column: dateColIndex, ascending: true}); // Sort by Date, ascending
+    }
+    if (topicColIndex !== -1) {
+      sortCriteria.push({column: topicColIndex, ascending: true}); // Then by Topic, ascending
+    }
+
+    if (sortCriteria.length > 0) {
+      sortRange.sort(sortCriteria);
+      Logger.log(`Contents sorted by ${dateColIndex !== -1 ? 'Date' : ''}${dateColIndex !== -1 && topicColIndex !== -1 ? ' then ' : ''}${topicColIndex !== -1 ? 'Topic' : ''}.`);
+    }
+  } else {
+    Logger.log(`${functionName}. '${newSheetName}'. No data to sort (or only header row) or specified sort columns not found.`);
+  }
+  // ------------------------------------
+  // Optional: Move the newly created sheet to be the active sheet and at the end
+  spreadsheet.setActiveSheet(destinationSheet);
+  //spreadsheet.moveActiveSheet(spreadsheet.getSheets().length);
+
+  return theResults(true, `Values and dimensions from '${SOURCE_SHEET_NAME}' have been copied to a new sheet: '${newSheetName}'!`, functionName);
+
 };
 

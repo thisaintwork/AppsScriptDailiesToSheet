@@ -8,40 +8,16 @@
  * @property {*}       data     - Payload data (or null on failure).
  */
 
-// /**
-//  * @param {string} message
-//  * @param {*} [data=null]
-//  * @param {string} [fn=""]
-//  * @returns {Result}
-//  */
-// const okResult = (message, data = null, fn = "") => ({
-//   ok:      true,
-//   message: `${fn}. ${message}`,
-//   data:    data
-// });
-//
-// /**
-//  * @param {string} message
-//  * @param {string} [fn=""]
-//  * @returns {Result}
-//  */
-// const failResult = (message) => {
-//   Logger.log(message);
-//   return ({
-//     ok:      false,
-//     message: `${message}`,
-//     data:    null
-//   });
-// }
-
 /**
  * @param {string} message
  * @param {string} functionName
  * @returns {Result}
  */
 const theResults = (pass = false, message, functionName, data = null) => {
-  const passString = pass ? "Success" : "Error";
-  Logger.log(`${functionName}. ${passString}. ${message}. Is data null? = ${data === null}`);
+  //const passString = pass ? "Success" : "Error";
+  //Logger.log(`${functionName}. ${passString}. ${message}. Is data null? = ${data === null}`);
+  Logger.log(`${functionName}. ${message}. Is data null? = ${data === null}`);
+
   return ({
     ok:      pass,
     message: message,
