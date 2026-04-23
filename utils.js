@@ -2,20 +2,19 @@
 /**
  * Standard result object for this project.
  *
+ */
+
+
+/**
+ * Provide a consistent return format for all functions.
+ *
  * @typedef {Object} Result
  * @property {boolean} ok       - True on success, false on failure.
  * @property {string}  message  - Description of the outcome.
+ * @property {string}  functionName  - Description of the outcome.
  * @property {*}       data     - Payload data (or null on failure).
  */
-
-/**
- * @param {string} message
- * @param {string} functionName
- * @returns {Result}
- */
 const theResults = (pass = false, message, functionName, data = null) => {
-  //const passString = pass ? "Success" : "Error";
-  //Logger.log(`${functionName}. ${passString}. ${message}. Is data null? = ${data === null}`);
   Logger.log(`${functionName}. ${message}. Is data null? = ${data === null}`);
 
   return ({
@@ -39,11 +38,13 @@ const getValidators = () => [
   assignValuesToHash,
 ];
 
-/*
- *************************************************************************************************************************** 
+/**
+ *
  * Generates a timestamp string for the current date and time in 
  * YYYYMMDDHHMMSS format (e.g., 20250930172629).
  * * @returns {string} The formatted timestamp string.
+ *
+ * @returns {string}
  */
 const getTimestampString = () => {
   const pad = num => (num < 10 ? '0' : '') + num;
@@ -58,8 +59,7 @@ const getTimestampString = () => {
   ].join('');
 };
 
-
-  /**
+/**
  * Processes an array of tuples through a pipeline of validator functions.
  * Each validator runs once and receives the full array of tuples and the
  * current state of the hash.
@@ -73,15 +73,12 @@ const getTimestampString = () => {
  * @param {Array<Array<string>>} tuples      - Array of [attributeString, valueString] pairs
  * @param {Object}               hash        - Predefined keys with undefined values
  * @param {Array<Function>}      validators  - Array of validator functions
- *
- * @returns {{ ok: boolean, message: string, data: Object|null }}
+ * @returns {Result}
  *   data = final state of hash after all validators processed
  */
 const populateInputValues = (tuples, hash, validators) => {
   const functionName = `populateInputValues`;
   Logger.log(`${functionName}. Started.`);
-  let returnResult;
-
 
   // --- Guard: validate inputs ---
   if (!tuples || !Array.isArray(tuples)) {
@@ -139,7 +136,14 @@ const populateInputValues = (tuples, hash, validators) => {
  *   ok: true  = yes, skip this tuple
  *   ok: false = no, continue to validator pipeline
  */
-const okToSkip = (tuple, hash) => {
+
+
+/**
+ *
+ * @param tuple
+ * @returns {Result}
+ */
+const okToSkip = tuple => {
   const functionName = 'okToSkip';
   // Logger.log(`${functionName}. Started.`);
 
@@ -164,7 +168,7 @@ const okToSkip = (tuple, hash) => {
  *
  * @param {Array<Array<string>>} tuples
  * @param {Object}               hash
- * @returns {{ ok: boolean, message: string, data: Object|null }}
+ * @returns {Result}
  */
 const checkIsAttributeUnique = (tuples, hash) => {
   const functionName = 'checkIsAttributeUnique';
@@ -177,7 +181,7 @@ const checkIsAttributeUnique = (tuples, hash) => {
     const attributeName = tuple[0].trim().toLowerCase();
 
     // Skip empty and comment rows
-    if (okToSkip(tuple, hash).ok) continue;
+    if (okToSkip(tuple).ok) continue;
 
     if (seen[attributeName]) {
       if (!duplicates.includes(attributeName)) {
@@ -204,13 +208,12 @@ const checkIsAttributeUnique = (tuples, hash) => {
  *
  * @param {Array<Array<string>>} tuples - Array of [attributeName, value] pairs
  * @param {Object}               hash
- * @returns {{ ok: boolean, message: string, data: Object|null }}
+ * @returns {Result}
  *   data = current hash unchanged
  */
 const checkIsAttributeKnownKey = (tuples, hash) => {
   const functionName = 'checkIsAttributeKnownKey';
   Logger.log(`${functionName}. Started.`);
-  let returnResult;
 
   const unknownKeys = [];
   const hashByHashKey = getConfigHash();
@@ -226,7 +229,7 @@ const checkIsAttributeKnownKey = (tuples, hash) => {
   for (const tuple of tuples) {
 
     // Skip empty and comment rows
-    if (okToSkip(tuple, hash).ok) continue;
+    if (okToSkip(tuple).ok) continue;
 
     const attributeName = tuple[0];
     Logger.log(`checkIsAttributeKnownKey. attributeName = ${attributeName}, hashByHashKey[attributeName] = ${hashByHashKey[attributeName]}, ${attributeName === hashByHashKey[attributeName] ? '✅' : '❌'}`);
@@ -249,7 +252,7 @@ const checkIsAttributeKnownKey = (tuples, hash) => {
  *
  * @param {Array<Array<string>>} tuples - Array of [attributeName, value] pairs
  * @param {Object}               hash
- * @returns {{ ok: boolean, message: string, data: Object|null }}
+ * @returns {Result}
  *   data = current hash unchanged
  */
 const checkIsAttributeValueDefined = (tuples, hash) => {
@@ -260,7 +263,7 @@ const checkIsAttributeValueDefined = (tuples, hash) => {
   for (const tuple of tuples) {
 
     // Skip empty and comment rows
-    if (okToSkip(tuple, hash).ok) continue;
+    if (okToSkip(tuple).ok) continue;
 
     const attributeName = tuple[0].trim() ;
     const value         = tuple[1].trim();
@@ -277,7 +280,7 @@ const checkIsAttributeValueDefined = (tuples, hash) => {
 
     if (typeof value !== 'string') {
       invalidValues.push(`[${attributeName}] value is not a string: ${value}`);
-      continue;
+      continue; //unncecessary as the last statement in a loop
     }
 
   }
@@ -294,7 +297,7 @@ const checkIsAttributeValueDefined = (tuples, hash) => {
  *
  * @param {Array<Array<string>>} tuples - Array of [attributeName, value] pairs
  * @param {Object}               hash
- * @returns {{ ok: boolean, message: string, data: Object|null }}
+ * @returns {Result}
  *   data = updated copy of hash with all values assigned
  */
 const assignValuesToHash = (tuples, hash) => {
@@ -305,7 +308,7 @@ const assignValuesToHash = (tuples, hash) => {
   for (const tuple of tuples) {
 
     // Skip empty and comment rows
-    if (okToSkip(tuple, hash).ok) continue;
+    if (okToSkip(tuple).ok) continue;
 
     const attributeName = tuple[0];
     const value         = tuple[1];

@@ -1,39 +1,62 @@
 // gsheet-sheet.js
 
 // ***********************************************************************************************************************************************************************************************
+
+/**
+ * Extracts all URLs from the display value of a cell.
+ *
+ * @param cell - The cell object containing the text to search.
+ * @returns {string[] | null} Array of URLs if any were found, otherwise null.
+ */
 function extractURLs(cell) {
   
- var text = cell.getDisplayValue();
- var urlRegex = /(https?:\/\/[^\s]+)/g;
- var urls = text.match(urlRegex);
- return urls;
+ let text = cell.getDisplayValue();
+ let urlRegex = /(https?:\/\/[^\s]+)/g;
+ //return urls
+ return text.match(urlRegex);
+
 }
 
-// ***********************************************************************************************************************************************************************************************
+
+/**
+ * Updates the value of the specified cell in the active sheet of the current spreadsheet.
+ *
+ * @param {string} cellAddress - The address of the cell to update (e.g., "A1").
+ * @return {void} This function does not return a value.
+ */
 function updateCells(cellAddress) {
 // Open the active sheet
-var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+ let sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
 
 // Update cell A1
 sheet.getRange(cellAddress).setValue("Hello world!");
 }
 
 // ***********************************************************************************************************************************************************************************************
+/**
+ * Compares values in the first range against the given target value and
+ * appends the corresponding values from the second range as quoted text.
+ *
+ * @param {Array<Array<*>>} range1 - First range of values to compare.
+ * @param {Array<Array<*>>} range2 - Second range of values to append from.
+ * @param {*} iValue - Value to match against entries in range1.
+ * @returns {string} A comma-separated list of quoted matching values, or an empty string if no match is found.
+ */
 function COMPAREANDAPPENDTEXT(range1, range2, iValue) {
   //=COMPAREANDAPPENDTEXT(C4:BN4,C1:BN1)  
   if (!range1 || !range2) return '';
 
   // Flatten in case the ranges are 1 row × N or N × 1
-  var flat1 = range1.flat();
-  var flat2 = range2.flat();
+  let flat1 = range1.flat();
+  let flat2 = range2.flat();
 
   if (flat1.length !== flat2.length) {
   throw new Error('Both ranges must have the same number of cells');
   }
 
-  var output = [];
+  let output = [];
 
-  for (var i = 0; i < flat1.length; i++) {
+  for (let i = 0; i < flat1.length; i++) {
     if (flat1[i] === iValue || flat1[i] === iValue.toString()) {
     output.push('"' + flat2[i] + '"');
     }
@@ -42,7 +65,13 @@ function COMPAREANDAPPENDTEXT(range1, range2, iValue) {
   return output.join(',');
 }
 
-// ***********************************************************************************************************************************************************************************************
+/**
+ * Hides or unhides columns in a Google Sheets spreadsheet based on the values in a specified row range.
+ * If a cell in the specified row contains the value `0`, the corresponding column will be hidden.
+ * If a cell contains any other value, the corresponding column will be unhidden.
+ *
+ * @return {void} This method does not return a value.
+ */
 function hideOrUnhideColumnsBasedOnRowRange() {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
   
@@ -66,7 +95,14 @@ function hideOrUnhideColumnsBasedOnRowRange() {
   }
 }
 
-// ***********************************************************************************************************************************************************************************************
+/**
+ * Unhides all columns within a specified range in the active sheet of the active spreadsheet.
+ *
+ * This function retrieves a predefined range of cells, iterates over its columns,
+ * and unhides any hidden columns within that range.
+ *
+ * @return {void} Does not return a value.
+ */
 function UnhideAllColumns() {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
   
@@ -86,15 +122,15 @@ function UnhideAllColumns() {
 
 /**
  * Appends the extracted row data to a specific tab within a Google Sheet.
- * * @param {Array<Array<string>>} extractedRows - The array of rows to write.
- * @param {string} sheetID - The ID of the target Google Sheet.
+ *
+ * @param {Array<Array<string>>} extractedRows - The array of rows to write.* @param {string} sheetID - The ID of the target Google Sheet.
  * @param {string} targetSheetName - The name of the specific tab (worksheet) to append to.
- * @returns {boolean} True if the append was successful, false otherwise.
+ * @returns {Result}
  */
 const appendTableRowsToSheet = ( extractedRows, sheetID, targetSheetName ) => {
   const functionName = 'appendTableRowsToSheet';
   Logger.log(`${functionName}. Started.`);
-  let returnResult;
+
 
   if (extractedRows.length === 0 || extractedRows[0].length === 0) {
     return theResults(false, 'No valid data rows to append.', functionName);
@@ -107,7 +143,7 @@ const appendTableRowsToSheet = ( extractedRows, sheetID, targetSheetName ) => {
 
     // Determine the starting row for the new data
     // ➡️ NEW: Create modified rows with prepended row numbers
-    var startRow = sheet.getLastRow() + 1;
+    let startRow = sheet.getLastRow() + 1;
     const modifiedRows = extractedRows.map((row, index) => {
       const rowNumber = startRow + index;
       return [rowNumber, ...row]; // Prepend row number to each row
@@ -134,16 +170,14 @@ const appendTableRowsToSheet = ( extractedRows, sheetID, targetSheetName ) => {
 /**
  * Reads rows from a named tab in a Google Sheet and returns a hash of inputs.
  *
- * @param sheetID defined within config.js. Accessed via getRequiredInitInfo().sheetID
- * @param tabName defined within config.js. Accessed via getRequiredInitInfo().sheetTabTitle
- * @param numRows defined within config.js. Accessed via getRequiredInitInfo().maxInputRows
- * @param requiredAttribsHash defined within config.js. Accessed via getConfigHash().
+ * @param requiredInitInfo - Accessed via getRequiredInitInfo().sheetTabTitle
+ * @param requiredAttribsHash - defined within config.js. Accessed via getConfigHash().
  *        This is the initialization hash that defines the required attributes.
  *        It never gets values for it's keys.
- * @param validatorFunctions - List of functions that validate the input data.
+ * @param validatorFunctions  - List of functions that validate the input data.
  * @returns {Result} - An object containing the result of the operation.
  */
-const readInput = (sheetID, tabName, numRows, requiredAttribsHash, validatorFunctions) => {
+const readInput = (requiredInitInfo, requiredAttribsHash, validatorFunctions) => {
   const functionName = 'readInput';
   Logger.log(`${functionName}. Started.`);
   let returnResult;
@@ -151,23 +185,23 @@ const readInput = (sheetID, tabName, numRows, requiredAttribsHash, validatorFunc
 
   let spreadsheet;
   try {
-    spreadsheet = SpreadsheetApp.openById(sheetID);
+    spreadsheet = SpreadsheetApp.openById(requiredInitInfo.sheetID);
   } catch (err) {
-    return theResults(false, ` Could not open spreadsheet with id: ${sheetID} - ${err.message}`, functionName);
+    return theResults(false, ` Could not open spreadsheet with id: ${requiredInitInfo.sheetID} - ${err.message}`, functionName);
   }
 
   // --- Find the tab ---
-  const sheet = spreadsheet.getSheetByName(tabName);
+  const sheet = spreadsheet.getSheetByName(requiredInitInfo.sheetInputTabTitle);
   if (!sheet) {
-    return theResults(false, `Could not find tab named: ${tabName} in spreadsheet: ${sheetID}`, functionName);
+    return theResults(false, `Could not find tab named: ${requiredInitInfo.sheetInputTabTitle} in spreadsheet: ${sheetID}`, functionName);
   }
 
   // --- Read the rows ---
   let rawRows;
   try {
-    rawRows = sheet.getRange(1, 1, numRows, 2).getValues();
+    rawRows = sheet.getRange(1, 1, requiredInitInfo.inputRows, 2).getValues();
   } catch (err) {
-    return theResults(false, ` Could not read rows from tab: ${tabName} - ${err.message}`, functionName);
+    return theResults(false, ` Could not read rows from tab: ${requiredInitInfo.sheetInputTabTitle} - ${err.message}`, functionName);
   }
 
   // --- Convert to tuples ---
@@ -183,14 +217,14 @@ const readInput = (sheetID, tabName, numRows, requiredAttribsHash, validatorFunc
   if (!returnResult.ok) {
     return theResults(false, returnResult.message, functionName);
   }
-
-  return theResults(true, 'Completed.', functionName, returnResult.data);
+  const combinedData =   { ...requiredInitInfo, ...returnResult.data };
+  return theResults(true, 'Completed.', functionName, combinedData);
 };
 
 const createCurrentSheetTabSnapshot = (sourceSheetName,newSheetName,dateHeader,topicHeader) => {
   const functionName = 'createCurrentSheetTabSnapshot';
   Logger.log(`${functionName}. Started.`);
-  let returnResult;
+
 
   const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
   const sourceSheet = spreadsheet.getSheetByName(sourceSheetName);
@@ -294,7 +328,76 @@ const createCurrentSheetTabSnapshot = (sourceSheetName,newSheetName,dateHeader,t
   spreadsheet.setActiveSheet(destinationSheet);
   //spreadsheet.moveActiveSheet(spreadsheet.getSheets().length);
 
-  return theResults(true, `Values and dimensions from '${SOURCE_SHEET_NAME}' have been copied to a new sheet: '${newSheetName}'!`, functionName);
+  return theResults(true, `Values and dimensions from '${sourceSheetName}' have been copied to a new sheet: '${newSheetName}'!`, functionName);
 
 };
 
+
+/**
+ * @function deleteSnapshotTabs
+ * @description Scans all sheets in the active spreadsheet and permanently deletes any
+ *              visible, unprotected sheet whose name begins with the prefix "Snapshot-".
+ *              Iterates in reverse order to safely handle index shifting during deletion.
+ *              Will not attempt to delete the last remaining visible sheet in the spreadsheet.
+ *              Note: The prefix match is case-sensitive ("snapshot-" will not be matched).
+ * @param snapshotPrefix
+ * @returns {Result}
+ */
+const deleteSnapshotTabs = (snapshotPrefix) => {
+  const functionName = 'deleteSnapshotTabs';
+  Logger.log(`${functionName}. Started.`);
+
+
+  const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+
+  // Fetch the full list of sheets once at the start of the operation
+  const sheets = spreadsheet.getSheets();
+
+
+  // Counter to track how many sheets were successfully removed
+  let sheetsDeletedCount = 0;
+
+  // Iterate in reverse order to prevent index-shifting issues as sheets are removed
+  for (let i = sheets.length - 1; i >= 0; i--) {
+    const sheet = sheets[i];
+    const sheetName = sheet.getName();
+    const sheetId = sheet.getSheetId(); // Unique, stable numeric identifier for this sheet
+
+    // Skip any sheet that is currently hidden from the user
+    if (sheet.isSheetHidden()) {
+      Logger.log(`${functionName}. Skipping hidden sheet: '${sheetName}'.`);
+      continue;
+    }
+
+    // Skip any sheet that has sheet-level protection applied
+    if (sheet.getProtections(SpreadsheetApp.ProtectionType.SHEET).length > 0) {
+      Logger.log(`${functionName}. Skipping protected sheet: '${sheetName}'.`);
+      continue;
+    }
+
+    // Only process sheets whose names begin with the defined snapshot prefix
+    if (sheetName.startsWith(snapshotPrefix)) {
+
+      // Guard: A spreadsheet must always retain at least one visible sheet.
+      // Re-query visible sheets on each iteration to reflect any deletions already made.
+      const visibleSheets = spreadsheet.getSheets().filter(s => !s.isSheetHidden());
+      if (visibleSheets.length === 1 && visibleSheets[0].getSheetId() === sheetId) {
+        Logger.log(`${functionName}. Skipping '${sheetName}': it is the last visible sheet and cannot be deleted.`);
+        continue;
+      }
+
+      // Attempt to delete the qualifying sheet and report any failure back to the caller
+      try {
+        spreadsheet.deleteSheet(sheet);
+        sheetsDeletedCount++;
+        Logger.log(`${functionName}. Successfully deleted sheet: '${sheetName}' (id: ${sheetId}, original index: ${i}).`);
+      } catch (e) {
+        return theResults(false, `Error. Failed to delete sheet '${sheetName}' (id: ${sheetId}). ${e.message}`, functionName);
+      }
+    }
+  }
+
+  // All eligible sheets have been processed — return a success result with a summary
+  Logger.log(`${functionName}. Finished. ${sheetsDeletedCount} sheet(s) were deleted.`);
+  return theResults(true, `Deletions are complete. ${sheetsDeletedCount} sheet(s) were deleted.`, functionName);
+};

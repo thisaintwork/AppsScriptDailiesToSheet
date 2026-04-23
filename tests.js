@@ -67,7 +67,6 @@ const getProcessTuplesTestCases = () => {
       ],
       validators: [
         checkIsAttributeUnique,
-,
       ],
       expectedOk:      false,
       expectedMessage: 'Duplicate attribute found: topTabTitle',

@@ -7,7 +7,7 @@ const getRequiredInitInfo = () => ({
   sheetInputTabTitle: 'DailiesXferMetaData',
   inputRows: 20,
   dateHeader: "date",    // Exact header name for your date column in tabX
-  topicHeader: "topic"  // Exact header name for your topic column in tabX
+  topicHeader: "topic",  // Exact header name for your topic column in tabX
   copiedSheetPrefix: "snapshot",
 
 });

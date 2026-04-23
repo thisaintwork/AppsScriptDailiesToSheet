@@ -1,10 +1,20 @@
 // gdoc-document.js
-/* 1️⃣
- *************************************************************************************************************************** 
+/**
  * Searches an array of DocumentApp.Tab objects for a tab with a specific title.
  * @param {DocumentApp.Tab[]} tabs The array of tabs from the Google Doc.
  * @param {string} targetTitle The title of the tab to find.
  * @returns {DocumentApp.Tab|null} The DocumentApp.Tab object if found, otherwise null.
+ *
+ * tabs.find(...) scans the array until it finds the first matching element.
+ * The callback tab => tab.getTitle() === targetTitle checks each tab’s title.
+ * If a match is found, tab becomes that tab object.
+ * If no match is found, tab becomes undefine
+ *
+ * @param tabs
+ * @param targetTitle
+ * @returns {{ok: boolean, tab: *}|{ok: boolean, tab: null}}
+ *
+ * Note: I am not going to standardize the error handling on this function
  */
 const getTabByTitle = (tabs, targetTitle) => {
   const functionName = 'getTabByTitle';
@@ -34,6 +44,8 @@ const getTabByTitle = (tabs, targetTitle) => {
  *   - Are actually tables,
  *   - Contain at least one row and one cell,
  *   - And whose top-left cell text includes `checkboxChar`.
+ *
+ * Note: I am not going to standardize the error handling on this function
  */
 const tablesSubset = (tables, checkboxChar) =>
   tables.filter(table => {
@@ -58,6 +70,8 @@ const tablesSubset = (tables, checkboxChar) =>
  *
  * @param {DocumentApp.TableRow} row - A single row from a Google Doc table
  * @returns {Array<string>} Array of trimmed cell text strings
+ *
+ * Note: I am not going to standardize the error handling on this function
  */
 const extractCellsFromTableRow = (row) => {
   const numCells = row.getNumCells();
@@ -70,6 +84,8 @@ const extractCellsFromTableRow = (row) => {
  *
  * @param {DocumentApp.Table} table - The Google Doc Table element to process.
  * @returns {Array<Array<string>>} Array of rows, where each row is an array of cell text strings
+ *
+ * Note: I am not going to standardize the error handling on this function
  */
 const extractRowDataFromOneTable = (table) => {
   const numRows = table.getNumRows();
@@ -88,8 +104,8 @@ const extractRowDataFromOneTable = (table) => {
   // Logger.log(`extractTableRows: numRows=${numRows}, dataRows=${dataRowIndices.length}`);
 
   // take a table and map each of its row data as an entry in rowsFromOneTable
-  const rowsFromOneTable = dataRowIndices.map(r => extractCellsFromTableRow(table.getRow(r)));
-  return rowsFromOneTable;
+  // return rowsFromOneTable
+  return dataRowIndices.map(r => extractCellsFromTableRow(table.getRow(r)));
   };
 
 /**
@@ -106,7 +122,6 @@ const extractRowDataFromOneTable = (table) => {
 const collectRowsFromTables = (tables) => {
   const functionName = 'collectRowsFromTables';
   Logger.log(`${functionName}. Started.`);
-  let returnResult;
 
   // !tables1 catches:  null— was never set, undefined— was never passed in, any other falsy value
   // !Array.isArray(tables) catches: Catches cases where tables exists but is the wrong type, for example: a single
@@ -147,7 +162,6 @@ const collectRowsFromTables = (tables) => {
 const getMarkedTables = (docTab, unCheckedCheckboxChar) => {
   const functionName = 'getMarkedTables';
   Logger.log(`${functionName}. Started.`);
-  let returnResult;
 
 
   // --- Guard: validate inputs ---
@@ -199,7 +213,7 @@ const getMarkedTables = (docTab, unCheckedCheckboxChar) => {
 const getDocSubTab = (docId, topTabTitle, subTabTitle) => {
   const functionName = 'getDocSubTab';
   Logger.log(`${functionName} Started.`);
-  let returnResult;
+
   // Logger.log(`docId=${docId} topTabTitle=${topTabTitle} subTabTitle=${subTabTitle}`);
 
   // --- Open the Google Doc ---
@@ -231,40 +245,7 @@ const getDocSubTab = (docId, topTabTitle, subTabTitle) => {
   return theResults(true, `found sub tab: ${subTabTitle}`, functionName, subResult.tab);
 };
 
- /***************************************************************************************************************************
- */
-const replaceCheckInTopLeftCell = table => {
-  const checkedCheckboxChar = '✔';
-  const checkedEmoji = '✅';
 
-  // Pure: Don't mutate input; just report if invalid table
-  const isInvalid =
-    !table ||
-    table.getNumRows() === 0 ||
-    table.getRow(0).getNumCells() === 0;
-
-  if (isInvalid) {
-    // Explicit result object: not ok, return original table
-    return { ok: false, table };
-  }
-
-  const topLeftCellText = table.getCell(0, 0).getText();
-
-  if (!topLeftCellText.includes(checkedCheckboxChar)) {
-    // Explicit result: nothing replaced, original returned
-    return { ok: false, table };
-  }
-
-  // Immutability: create a copy before making changes
-  const copy = table.copy();
-  const topLeftCellCopy = copy.getCell(0, 0);
-  topLeftCellCopy.setText(
-    topLeftCellCopy.getText().replaceAll(checkedCheckboxChar, checkedEmoji)
-  );
-
-  // Explicit result: replacement made, return new table
-  return { ok: true, table: copy };
-};
 
 
 /**
@@ -305,7 +286,7 @@ const getMarkedTablesFromDoc = (docId, topTabTitle, subTabTitle,  unCheckedCheck
 
   returnResult = collectRowsFromTables(markedTables);
   if (!returnResult.ok)  return theResults(false, returnResult.message, functionName);
-  flatAllRowsFromTables = returnResult.data;
+  const flatAllRowsFromTables = returnResult.data;
 
   // debug:
   // print out the resulting tabular data
@@ -321,6 +302,17 @@ const getMarkedTablesFromDoc = (docId, topTabTitle, subTabTitle,  unCheckedCheck
   return theResults(true, 'Success', functionName, flatAllRowsFromTables);
 };
 
+/**
+ *
+ * open a specific Google Doc tab, then mark tables inside it as complete by replacing one checkbox character with another.
+ *
+ * @param docId
+ * @param topTabTitle
+ * @param subTabTitle
+ * @param unCheckedCheckboxChar
+ * @param checkedCheckboxChar
+ * @returns {Result}
+ */
 const markTablesAsComplete = (docId, topTabTitle, subTabTitle,  unCheckedCheckboxChar, checkedCheckboxChar) => {
   const functionName = 'markTablesAsComplete';
   Logger.log(`${functionName}. Started.`);
@@ -336,8 +328,6 @@ const markTablesAsComplete = (docId, topTabTitle, subTabTitle,  unCheckedCheckbo
 
   Logger.log(`markTablesAsComplete. Exiting`);
   return theResults(true, 'Success.', functionName);
-
-
 };
 
 /* TBH. I have never taken this function apart to really understand how it works.
@@ -355,7 +345,7 @@ const markTablesAsComplete = (docId, topTabTitle, subTabTitle,  unCheckedCheckbo
 const replaceCharInTablesInPlace = ( docTab, findChar, replaceWithChar) => {
   const functionName = 'replaceCharInTablesInPlace';
   Logger.log(`${functionName}. Started.`);
-  let returnResult;
+
 
   let tables;
   try {
