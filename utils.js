@@ -268,7 +268,7 @@ const checkIsAttributeValueDefined = (tuples, hash) => {
     const attributeName = tuple[0].trim() ;
     const value         = tuple[1].trim();
 
-    if (value.trim() === '') {
+    if (value === '') {
       invalidValues.push(`[${attributeName}] value is blank`);
       continue;
     }
@@ -280,7 +280,7 @@ const checkIsAttributeValueDefined = (tuples, hash) => {
 
     if (typeof value !== 'string') {
       invalidValues.push(`[${attributeName}] value is not a string: ${value}`);
-      continue; //unncecessary as the last statement in a loop
+      continue; //unnecessary as the last statement in a loop
     }
 
   }

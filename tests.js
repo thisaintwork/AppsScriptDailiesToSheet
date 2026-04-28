@@ -11,7 +11,7 @@
 
 
 /**
- * Returns all test cases for processTuplesThroughValidators.
+ * Returns all test cases for populateInputValues.
  * Defined as a function so that validator references are resolved
  * at call time, not at load time.
  *
@@ -106,7 +106,7 @@ const runOneTest = (testName, testCase) => {
   Logger.log(`== runOneTest:${testName} START: ===`);
 
   // --- Act ---
-  const result = processTuplesThroughValidators(
+  const result = populateInputValues(
     testCase.tuples,
     testCase.hash,
     testCase.validators,

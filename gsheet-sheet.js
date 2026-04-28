@@ -193,7 +193,7 @@ const readInput = (requiredInitInfo, requiredAttribsHash, validatorFunctions) =>
   // --- Find the tab ---
   const sheet = spreadsheet.getSheetByName(requiredInitInfo.sheetInputTabTitle);
   if (!sheet) {
-    return theResults(false, `Could not find tab named: ${requiredInitInfo.sheetInputTabTitle} in spreadsheet: ${sheetID}`, functionName);
+    return theResults(false, `Could not find tab named: ${requiredInitInfo.sheetInputTabTitle} in spreadsheet: ${requiredInitInfo.sheetID}`, functionName);
   }
 
   // --- Read the rows ---
@@ -339,7 +339,7 @@ const createCurrentSheetTabSnapshot = (sourceSheetName,newSheetName,dateHeader,t
  *              visible, unprotected sheet whose name begins with the prefix "Snapshot-".
  *              Iterates in reverse order to safely handle index shifting during deletion.
  *              Will not attempt to delete the last remaining visible sheet in the spreadsheet.
- *              Note: The prefix match is case-sensitive ("snapshot-" will not be matched).
+ *              Note: The prefix match is case-insensitive and ignores leading spaces.
  * @param snapshotPrefix
  * @returns {Result}
  */
@@ -375,8 +375,8 @@ const deleteSnapshotTabs = (snapshotPrefix) => {
       continue;
     }
 
-    // Only process sheets whose names begin with the defined snapshot prefix
-    if (sheetName.startsWith(snapshotPrefix)) {
+    // Only process sheets whose names begin with the defined snapshot prefix (case-insensitive, ignoring leading spaces)
+    if (sheetName.trim().toLowerCase().startsWith(snapshotPrefix.trim().toLowerCase())) {
 
       // Guard: A spreadsheet must always retain at least one visible sheet.
       // Re-query visible sheets on each iteration to reflect any deletions already made.

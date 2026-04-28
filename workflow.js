@@ -84,6 +84,7 @@ function transferDailiesWorkflow() {
 function createTimestampedSnapshot() {
   const functionName = 'createTimestampedSnapshot';
   Logger.log(`${functionName}. Started.`);
+  const errLogString = `${functionName} Error.`;
   let returnResult;
 
   const ui = SpreadsheetApp.getUi(); // Get the UI object for alerts
@@ -134,6 +135,7 @@ function createTimestampedSnapshot() {
 const deleteAllSnapshotTabs = () => {
     const functionName = 'deleteAllSnapshotTabs';
     Logger.log(`${functionName}. Started.`);
+    const errLogString = `${functionName} Error.`;
     let returnResult;
 
     const ui = SpreadsheetApp.getUi(); // Get the UI object for alerts
