@@ -39,8 +39,48 @@ const getValidators = () => [
 ];
 
 /**
+ * Validates that a value is a valid non-empty string.
  *
- * Generates a timestamp string for the current date and time in 
+ * Validation rules:
+ * 1. Must not be null or undefined
+ * 2. Must be able to be cast as a string
+ * 3. Must have length > 0 after trimming whitespace
+ *
+ * @param {*} value - The value to validate
+ * @param {string} paramName - The parameter name (for error messages)
+ * @returns {Result}
+ *   ok: true if valid, false if invalid
+ *   message: describes the validation outcome
+ *   data: the trimmed string value if valid, null if invalid
+ */
+const validateNonEmptyString = (value, paramName = 'parameter') => {
+  const functionName = 'validateNonEmptyString';
+
+  // Check for null or undefined
+  if (value === null || value === undefined) {
+    return theResults(false, `${paramName} must not be null or undefined`, functionName);
+  }
+
+  // Attempt to cast as string
+  let stringValue;
+  try {
+    stringValue = String(value);
+  } catch (error) {
+    return theResults(false, `${paramName} cannot be cast as a string: ${error.message}`, functionName);
+  }
+
+  // Trim and check for empty string
+  const trimmedValue = stringValue.trim();
+  if (trimmedValue.length === 0) {
+    return theResults(false, `${paramName} must not be empty after trimming whitespace`, functionName);
+  }
+
+  return theResults(true, `${paramName} is valid`, functionName, trimmedValue);
+};
+
+/**
+ *
+ * Generates a timestamp string for the current date and time in
  * YYYYMMDDHHMMSS format (e.g., 20250930172629).
  * * @returns {string} The formatted timestamp string.
  *

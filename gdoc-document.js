@@ -31,19 +31,19 @@ const getTabByTitle = (tabs, targetTitle) => {
 
 /* 1️⃣
  ******************************************************************************************************************
- * Returns a filtered subset of table elements whose top-left cell contains a given checkbox character.
+ * Returns a filtered subset of table elements whose top row contains a given checkbox character.
  *
  * @param {GoogleAppsScript.Document.Body[]|GoogleAppsScript.Document.Table[]} tables
  *   An array of DocumentApp elements expected to contain table elements.
  * @param {string} checkboxChar
  *   The character or string that identifies a “selected” or “target” table
- *   when present in the top-left cell (row 0, column 0).
+ *   when present in any cell in the top row (row 0).
  *
  * @returns {GoogleAppsScript.Document.Table[]}
  *   An array of table elements that:
  *   - Are actually tables,
  *   - Contain at least one row and one cell,
- *   - And whose top-left cell text includes `checkboxChar`.
+ *   - And whose top row contains `checkboxChar` in at least one cell.
  *
  * Note: I am not going to standardize the error handling on this function
  */
@@ -56,13 +56,20 @@ const tablesSubset = (tables, checkboxChar) =>
     if (table.getNumRows() === 0) return false;
 
     // Guard: skip tables whose first row has no cells
-    if (table.getRow(0).getNumCells() === 0) return false;
+    const firstRow = table.getRow(0);
+    if (firstRow.getNumCells() === 0) return false;
 
-    // Get the text from the top-left cell (row 0, column 0)
-    const topLeft = table.getCell(0, 0).getText().trim();
+    // Check if any cell in the top row contains the checkbox character
+    const numCells = firstRow.getNumCells();
+    for (let col = 0; col < numCells; col++) {
+      const cellText = table.getCell(0, col).getText().trim();
+      if (cellText.includes(checkboxChar)) {
+        return true;
+      }
+    }
 
-    // A table belongs to the subset if its top-left text contains the checkbox character
-    return topLeft.includes(checkboxChar);
+    // No cell in the top row contained the checkbox character
+    return false;
   });
 
 /**
@@ -330,12 +337,13 @@ const markTablesAsComplete = (docId, topTabTitle, subTabTitle,  unCheckedCheckbo
   return theResults(true, 'Success.', functionName);
 };
 
-/* TBH. I have never taken this function apart to really understand how it works.
- *
- * Replaces in the top-left cell of every table in a document body (in-place).
+/*
+ * Replaces findChar with replaceWithChar in any cell of the top row of every table (in-place).
  * Returns an object describing what was changed.
  *
- * @param {GoogleAppsScript.Document.Body} body
+ * @param {GoogleAppsScript.Document.Tab} docTab - The document tab containing the tables
+ * @param {string} findChar - The character to find in top row cells
+ * @param {string} replaceWithChar - The character to replace it with
  * @returns {Object} result
  *   {number[]} changedIndices - Array of table indices that were changed.
  *   {number} changedCount - How many tables were updated.
@@ -358,12 +366,23 @@ const replaceCharInTablesInPlace = ( docTab, findChar, replaceWithChar) => {
   for (let i = 0; i < tables.length; i++) {
     const table = tables[i];
     if (table.getNumRows() > 0 && table.getRow(0).getNumCells() > 0) {
-      const cell = table.getCell(0, 0);
-      const text = cell.getText();
-      if (text.includes(findChar)) {
-        // Simplistic replace. Will replace all instances
-        const regex = new RegExp(findChar, 'g');
-        cell.setText(text.replace(regex, replaceWithChar));
+      let tableWasChanged = false;
+      const firstRow = table.getRow(0);
+      const numCells = firstRow.getNumCells();
+
+      // Check each cell in the top row
+      for (let col = 0; col < numCells; col++) {
+        const cell = table.getCell(0, col);
+        const text = cell.getText();
+        if (text.includes(findChar)) {
+          // Replace all instances of findChar with replaceWithChar in this cell
+          const regex = new RegExp(findChar, 'g');
+          cell.setText(text.replace(regex, replaceWithChar));
+          tableWasChanged = true;
+        }
+      }
+
+      if (tableWasChanged) {
         changedIndices.push(i);
       }
     }

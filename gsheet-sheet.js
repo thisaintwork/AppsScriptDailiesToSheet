@@ -289,10 +289,11 @@ const createCurrentSheetTabSnapshot = (sourceSheetName,newSheetName,dateHeader,t
   let topicColIndex = -1;
 
   for (let i = 0; i < headers.length; i++) {
-    if (headers[i].toString().trim().toLowerCase() === dateHeader.trim().toLowerCase()) {
+    const headerValue = headers[i] != null ? String(headers[i]).trim().toLowerCase() : '';
+    if (headerValue === dateHeader.trim().toLowerCase()) {
       dateColIndex = i + 1; // Column index is 1-based
     }
-    if (headers[i].toString().trim().toLowerCase() === topicHeader.trim().toLowerCase()) {
+    if (headerValue === topicHeader.trim().toLowerCase()) {
       topicColIndex = i + 1; // Column index is 1-based
     }
   }
@@ -347,6 +348,13 @@ const deleteSnapshotTabs = (snapshotPrefix) => {
   const functionName = 'deleteSnapshotTabs';
   Logger.log(`${functionName}. Started.`);
 
+  // Validate snapshotPrefix parameter
+  const validationResult = validateNonEmptyString(snapshotPrefix, 'snapshotPrefix');
+  if (!validationResult.ok) {
+    return theResults(false, validationResult.message, functionName);
+  }
+  // Use the validated and trimmed prefix value
+  const validatedPrefix = validationResult.data;
 
   const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
 
@@ -376,7 +384,8 @@ const deleteSnapshotTabs = (snapshotPrefix) => {
     }
 
     // Only process sheets whose names begin with the defined snapshot prefix (case-insensitive, ignoring leading spaces)
-    if (sheetName.trim().toLowerCase().startsWith(snapshotPrefix.trim().toLowerCase())) {
+    Logger.log(`${functionName}. Process: '${sheetName}'.`);
+    if (sheetName.trim().toLowerCase().startsWith(validatedPrefix.toLowerCase())) {
 
       // Guard: A spreadsheet must always retain at least one visible sheet.
       // Re-query visible sheets on each iteration to reflect any deletions already made.
